@@ -1,0 +1,23 @@
+{
+  "app": "CumpleFactura",
+  "generated_at": "2026-06-28T19:21:26.101Z",
+  "status": "not_provided",
+  "validation_status": "passed",
+  "gate_run_id": "20260628-212017",
+  "manifest_env": "CUMPLEFACTURA_EXTERNAL_ACCEPTANCE_MANIFEST",
+  "manifest_path": null,
+  "fixture_template": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\fixtures\\external-acceptance-manifest.example.json",
+  "provider": null,
+  "environment": null,
+  "accepted": false,
+  "external_call_performed_by_verifier": false,
+  "warnings": [
+    "No external acceptance manifest supplied. This is expected before real homologation/acceptance."
+  ],
+  "errors": [],
+  "limits": [
+    "This verifier validates evidence intake only; it performs no AEAT/FACe/SII/foral network call.",
+    "No screenshot, raw XML, password, private key or unredacted vault reference is accepted in the manifest.",
+    "An accepted manifest is evidence of an external result being recorded, not legal certification by this app."
+  ]
+}

@@ -1,0 +1,709 @@
+{
+  "app": "CumpleFactura",
+  "generated_at": "2026-06-28T19:23:26.504Z",
+  "status": "passed",
+  "gate_run_id": "20260628-212017",
+  "rows": 40,
+  "rules": [
+    "Every matrix row must keep promise, local source, executable evidence and live limit.",
+    "Critical local normative sources are hashed from C:\\03 LEGISLACION.",
+    "Current or latest gate logs are hashed.",
+    "Generated XML/PDF/JSON/PNG evidence artifacts are hashed.",
+    "External acceptance manifests are represented by redacted hashes only and are hashed when present.",
+    "Secret scan evidence reports only rule ids and paths, never matched values.",
+    "Desktop Tauri E2E evidence records preflight or real mode explicitly; real mode must prove WebDriver session, Rust command flow, XML export and submission preparation.",
+    "During a running gate, latest-regulatory-gate.* is written after the ledger; the current run is represented by per-step logs.",
+    "Ledger proves local traceability, not external AEAT acceptance or legal sufficiency."
+  ],
+  "claims": [
+    {
+      "index": 1,
+      "promise": "Create draft and issue invoices locally",
+      "source": "`MODULE_CONTRACT.md`; `C:\\03 LEGISLACION\\AEAT\\MATRIZ_TECNICA_CUMPLEFACTURA_2026-05-27.md`",
+      "evidence": "`cargo test`; `db::tests::persists_company_customer_and_invoice_draft`; `domain::invoice::*`",
+      "limit": "Local workflow only; archive/delete policies and commercial CRUD depth remain pending"
+    },
+    {
+      "index": 2,
+      "promise": "Real company and customer forms",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/src/db/mod.rs`",
+      "evidence": "`cargo test`; `db::tests::updates_company_without_recreating_it`; `db::tests::upserts_customer_by_id_without_replace_delete`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Form-based create/edit only; full onboarding wizard and deletion/archive policies remain pending"
+    },
+    {
+      "index": 3,
+      "promise": "Initial onboarding settings",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/src/domain/settings.rs`; SQLite migration `007_app_settings.sql`",
+      "evidence": "`cargo test`; `db::tests::persists_app_settings_for_onboarding`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Guided panel only; step-by-step wizard polish remains pending"
+    },
+    {
+      "index": 4,
+      "promise": "Products/services catalog",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/src/domain/product.rs`; SQLite migration `008_products_catalog.sql`",
+      "evidence": "`cargo test`; `db::tests::upserts_and_lists_company_products`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Local per-company catalog only; no stock, price history, search or import yet"
+    },
+    {
+      "index": 5,
+      "promise": "Search and filter invoices",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/src/db/mod.rs`",
+      "evidence": "`cargo test`; `db::tests::filters_invoices_by_series_kind_status_and_search`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Local filters only; saved views remain pending"
+    },
+    {
+      "index": 6,
+      "promise": "Paginated local lists",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/src/db/mod.rs`; `src-tauri/src/commands/fiscal.rs`",
+      "evidence": "`cargo test`; `db::tests::paginates_invoice_audit_and_fiscal_lists`; `npm run validate:ui-contract`; `npm run validate:browser-smoke`",
+      "limit": "Local `limit/offset` pagination for invoices, audit and fiscal records; total counts, custom page sizes and saved views remain pending"
+    },
+    {
+      "index": 7,
+      "promise": "Editable invoice lines with discounts, IVA and IRPF",
+      "source": "`MODULE_CONTRACT.md`; `src-tauri/src/domain/invoice.rs`; SQLite migration `006_invoice_line_discounts.sql`",
+      "evidence": "`cargo test`; `domain::invoice::tests::draft_applies_line_discount_before_tax_and_withholding`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Quantity is integer in this MVP; advanced price rules and stock/unit metadata remain pending"
+    },
+    {
+      "index": 8,
+      "promise": "Safe default app/export directories",
+      "source": "`MODULE_CONTRACT.md`; Tauri path API contract",
+      "evidence": "`npm run validate:ui-contract`; `npm run build`; UI invokes `app_defaults_get`; command `commands::app::app_defaults_get`",
+      "limit": "Creates local defaults only; selected paths still require command-side validation before write/restore"
+    },
+    {
+      "index": 9,
+      "promise": "Native file picker for local paths",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; `src-tauri/capabilities/default.json`; dependency in `package.json`",
+      "evidence": "`npm run validate:ui-contract`; `npm run validate:browser-smoke`; `npm run build`; gate `tauri_build`",
+      "limit": "Main UI path selection uses native dialogs and extension filters; browser smoke mocks dialog IPC, not OS modal rendering"
+    },
+    {
+      "index": 10,
+      "promise": "Automatic invoice numbering by company/year/series",
+      "source": "`MODULE_CONTRACT.md`; SQLite migration `004_next_mvp.sql`",
+      "evidence": "`cargo test`; `db::tests::reserves_invoice_numbers_by_company_year_and_series`; UI invokes `invoice_next_number_preview`",
+      "limit": "Preview does not reserve; command emission remains the reservation boundary"
+    },
+    {
+      "index": 11,
+      "promise": "Configurable company invoice series",
+      "source": "`MODULE_CONTRACT.md`; SQLite migration `005_invoice_series_config.sql`; examples `VENDI202601`, `AL-001`, `C-001`, `I-001`",
+      "evidence": "`cargo test`; `db::tests::configures_invoice_series_and_initial_sequence`; `db::tests::rejects_series_next_number_not_after_existing_invoice`; `npm run validate:ui-contract`; `npm run validate:browser-smoke`",
+      "limit": "Local series/default/next number and per-invoice selector only; historical import remains pending"
+    },
+    {
+      "index": 12,
+      "promise": "Immutable audit chain",
+      "source": "`MODULE_CONTRACT.md`; RRSIF/VERI*FACTU local docs in `C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\`",
+      "evidence": "`services::audit::*`; `db::tests::audit_events_are_append_only`",
+      "limit": "Local evidence only"
+    },
+    {
+      "index": 13,
+      "promise": "VERI*FACTU `RegistroAlta` XML",
+      "source": "Local XSD `SuministroLR.xsd` and `SuministroInformacion.xsd`",
+      "evidence": "`services::verifactu::tests::generated_xml_passes_local_xsd_contract`; `npm run validate:verifactu:xsd`",
+      "limit": "XSD validates structure, not legal completeness"
+    },
+    {
+      "index": 14,
+      "promise": "AEAT official hash for `RegistroAlta`",
+      "source": "`Detalle especificaciones huella hash registros facturacion - AEAT.pdf`",
+      "evidence": "Official vectors in `services::verifactu::tests::calculates_official_aeat_*registro_alta*`",
+      "limit": "Covered fields only"
+    },
+    {
+      "index": 15,
+      "promise": "VERI*FACTU `RegistroAnulacion` XML",
+      "source": "Local XSD and AEAT hash detail PDF",
+      "evidence": "`services::verifactu::tests::builds_registro_anulacion_xml_shape`; official hash vector test",
+      "limit": "No AEAT transmission"
+    },
+    {
+      "index": 16,
+      "promise": "Fiscal records append-only",
+      "source": "`MODULE_CONTRACT.md`",
+      "evidence": "`db::tests::fiscal_records_are_append_only`; `db::tests::fiscal_records_track_issued_and_voided_chain`",
+      "limit": "SQLite local"
+    },
+    {
+      "index": 17,
+      "promise": "Fiscal chain verifier",
+      "source": "AEAT hash detail PDF",
+      "evidence": "`services::fiscal_chain::*` tests; UI calls `fiscal_chain_verify`; `npm run validate:browser-smoke`; `npm run validate:ui-contract`",
+      "limit": "Local verifier only; does not replace external audit, certification or AEAT acceptance"
+    },
+    {
+      "index": 18,
+      "promise": "Rectifying invoices `R1-R5` and `I/S`",
+      "source": "Local `SuministroInformacion.xsd` types `TipoFactura`, `TipoRectificativa`, `ImporteRectificacion`",
+      "evidence": "`builds_rectifying_registro_alta_xml_shape`; `builds_substitutive_rectifying_registro_alta_xml_shape`; DB persistence test",
+      "limit": "Technical selector; legal cause remains user/professional responsibility"
+    },
+    {
+      "index": 19,
+      "promise": "Rectification cause assistant",
+      "source": "Local `SuministroInformacion.xsd` annotations for `ClaveTipoFacturaType` R1-R5 and `ClaveTipoRectificativaType` S/I",
+      "evidence": "`services::rectification_advisor::*` tests; UI calls `rectification_advice` command",
+      "limit": "Assistant maps declared scenario only; it does not decide the legal/factual cause"
+    },
+    {
+      "index": 20,
+      "promise": "Prepare signature/submission package",
+      "source": "Local XSD and XML SHA256 evidence",
+      "evidence": "`services::submission::tests::prepares_unsigned_package_with_sha256`; `verifactu_submission_prepare`",
+      "limit": "Package is local; no AEAT network submission"
+    },
+    {
+      "index": 21,
+      "promise": "XAdES sidecar exact-XML preflight",
+      "source": "Sidecar `/verifactu/sign-xml`, local XML SHA256 and vault ref contract",
+      "evidence": "`services::xades_sidecar::*` tests; UI calls `verifactu_xades_sidecar_preflight`; sidecar tests `test_verifactu_sign_xml_*`",
+      "limit": "Preflight only; does not send XML or certificate refs to sidecar"
+    },
+    {
+      "index": 22,
+      "promise": "XAdES exact-XML signing via sidecar",
+      "source": "Sidecar `/verifactu/sign-xml`, HMAC boundary, local XML SHA256 and `signed_xades` fiscal export",
+      "evidence": "`services::xades_sidecar::sign_exact_xml_*` tests; UI calls `verifactu_xades_sidecar_sign`; sidecar tests `test_verifactu_sign_xml_*`",
+      "limit": "Requires explicit runtime flag, shared secret and real sidecar mode; gate uses fake local sidecar for CumpleFactura boundary"
+    },
+    {
+      "index": 23,
+      "promise": "AEAT VERI*FACTU transport preflight",
+      "source": "Local WSDL `SistemaFacturacion VERI-FACTU.wsdl`, service `sfVerifactu`, endpoints `SistemaVerifactu*`",
+      "evidence": "`services::aeat_transport::*` tests; UI calls `verifactu_transport_preflight`; gate step `cargo_test`",
+      "limit": "Preflight only; no SOAP call, certificate session or AEAT submission"
+    },
+    {
+      "index": 24,
+      "promise": "VERI*FACTU submit readiness via sidecar",
+      "source": "Sidecar `/verifactu/submit-preflight`, local WSDL/Zeep/vault readiness and HMAC boundary",
+      "evidence": "`services::verifactu_submit_sidecar::*` tests; UI calls `verifactu_submit_sidecar_preflight`; sidecar tests `test_verifactu_preflight_*`",
+      "limit": "Calls only local sidecar preflight; sends no raw XML; no SOAP call, CSV or AEAT acceptance"
+    },
+    {
+      "index": 25,
+      "promise": "VERI*FACTU invoke-submit boundary via sidecar",
+      "source": "Sidecar `/verifactu/invoke-submit`, WSDL operation `RegFactuSistemaFacturacion`, signed XML and HMAC boundary",
+      "evidence": "`services::verifactu_submit_sidecar::invoke_*` tests; UI calls `verifactu_submit_sidecar_invoke`; sidecar tests `test_verifactu_invoke_submit_*`",
+      "limit": "Runtime can ask sidecar to call AEAT only behind explicit flags/cert; gate uses fake local sidecar, no real AEAT/CSV"
+    },
+    {
+      "index": 26,
+      "promise": "ContaPro sidecar MVP fiscal import",
+      "source": "`MODULE_CONTRACT.md`; `tools/import-contapro-sidecar-evidence.mjs`; ContaPro sidecar `latest-external-readiness.json`; VERI*FACTU/SII acceptance manifests",
+      "evidence": "`npm run validate:contapro-sidecar-import`; gate step `contapro_sidecar_import`; evidence `tests/regulatory/evidence/latest-contapro-sidecar-import.json`",
+      "limit": "MVP importable scope is VERI*FACTU/SII only when ready plus accepted/passed manifest; FACe/TicketBAI are deferred evidence; no certificate/password/raw XML import and no AEAT/SII/FACe/foral network call"
+    },
+    {
+      "index": 27,
+      "promise": "SII sidecar preflight boundary",
+      "source": "ContaPro sidecar `/sii/submit-preflight`; `src-tauri/src/services/sidecar_channels.rs`",
+      "evidence": "`cargo test`; `services::sidecar_channels::*`; UI calls `sii_submit_sidecar_preflight`; `npm run validate:ui-contract`; `npm run validate:browser-smoke`",
+      "limit": "Fail-closed unless explicit flag/HMAC/vault exist; no invoice payload, no SOAP AEAT and no CSV retrieval from CumpleFactura gate"
+    },
+    {
+      "index": 28,
+      "promise": "TicketBAI deferred sidecar boundary",
+      "source": "ContaPro sidecar `/ticketbai/submit-preflight`; `src-tauri/src/services/sidecar_channels.rs`; ContaPro TicketBAI homologation status",
+      "evidence": "`cargo test`; `services::sidecar_channels::*`; UI shows deferred channel; `npm run validate:ui-contract`; `npm run validate:browser-smoke`",
+      "limit": "Not MVP importable; blocked by foral signature policy, software registration and acceptance evidence; no XML firmado and no foral network call from CumpleFactura gate"
+    },
+    {
+      "index": 29,
+      "promise": "Fiscal UI command contract",
+      "source": "`MODULE_CONTRACT.md`; matrix rows above",
+      "evidence": "`npm run validate:ui-contract`; gate step `ui_contract`",
+      "limit": "Static UI contract only; no browser interaction automation"
+    },
+    {
+      "index": 30,
+      "promise": "Regulatory evidence matrix quality gate",
+      "source": "`REGULATORY_EVIDENCE_MATRIX.md`; `MODULE_CONTRACT.md`",
+      "evidence": "`npm run validate:evidence-matrix`; gate step `evidence_matrix`; `tools/verify-regulatory-evidence.mjs`",
+      "limit": "Completeness/shape check only; it does not prove legal sufficiency"
+    },
+    {
+      "index": 31,
+      "promise": "Evidence ledger with SHA256",
+      "source": "`REGULATORY_EVIDENCE_MATRIX.md`; critical local sources in `C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\`; generated evidence in `tests/regulatory/evidence/`",
+      "evidence": "`npm run validate:evidence-ledger`; gate step `evidence_ledger`; `tools/verify-evidence-ledger.mjs`; evidence `tests/regulatory/evidence/latest-evidence-ledger.json`",
+      "limit": "Hash ledger proves local traceability of files/logs only; it is not certification, homologation or external AEAT acceptance"
+    },
+    {
+      "index": 32,
+      "promise": "External acceptance evidence intake",
+      "source": "`MODULE_CONTRACT.md`; fixture `tests/regulatory/fixtures/external-acceptance-manifest.example.json`; local AEAT VERI*FACTU sources",
+      "evidence": "`npm run validate:external-acceptance`; gate step `external_acceptance`; `tools/verify-external-acceptance-evidence.mjs`; evidence `tests/regulatory/evidence/latest-external-acceptance-evidence.json`",
+      "limit": "Validates redacted manifest and hashes referenced artifacts only; default state is `not_provided`, no AEAT call or certification"
+    },
+    {
+      "index": 33,
+      "promise": "External readiness audit",
+      "source": "`MODULE_CONTRACT.md`; sidecar gate/ledger; runtime flag contracts in Rust services",
+      "evidence": "`npm run validate:external-readiness`; gate step `external_readiness`; `tools/verify-external-readiness.mjs`; evidence `tests/regulatory/evidence/latest-external-readiness.json`",
+      "limit": "Reports ready/blocked status only; performs no network call, no certificate parsing, no AEAT submission and no homologation"
+    },
+    {
+      "index": 34,
+      "promise": "Core E2E real fiscal workflow",
+      "source": "`MODULE_CONTRACT.md`; `src-tauri/src/core_e2e.rs`; AEAT XSD assets",
+      "evidence": "`npm run validate:core-e2e`; gate step `core_e2e`; evidence `tests/regulatory/evidence/latest-core-e2e.json`; XML/PDF/JSON/CSV/audit artifacts in `tests/regulatory/evidence/`",
+      "limit": "In-memory SQLite/local files only; no Tauri window loop, XAdES, SOAP AEAT, AEAT CSV retrieval or external acceptance"
+    },
+    {
+      "index": 35,
+      "promise": "Browser smoke fiscal workflow",
+      "source": "`MODULE_CONTRACT.md`; `src/App.tsx`; matrix rows above",
+      "evidence": "`npm run validate:browser-smoke`; gate step `browser_smoke`; `tools/verify-browser-smoke.mjs`; evidence `tests/regulatory/evidence/latest-browser-smoke.json`",
+      "limit": "Uses local Tauri invoke mock; proves rendered workflow/limits, not Rust execution or AEAT acceptance"
+    },
+    {
+      "index": 36,
+      "promise": "Secret scan gate",
+      "source": "`MODULE_CONTRACT.md`; local secret handling policy",
+      "evidence": "`npm run validate:secret-scan`; gate step `secret_scan`; `tools/verify-secret-scan.mjs`; evidence `tests/regulatory/evidence/latest-secret-scan.json`",
+      "limit": "High-confidence local scan only; reports paths/rules, never matched values"
+    },
+    {
+      "index": 37,
+      "promise": "Desktop Tauri E2E evidence",
+      "source": "`MODULE_CONTRACT.md`; `tools/verify-tauri-desktop-e2e.mjs`; `package.json` dev toolchain",
+      "evidence": "`npm run validate:tauri-desktop-e2e`; gate step `tauri_desktop_e2e`; evidence `tests/regulatory/evidence/latest-tauri-desktop-e2e.json`; release exe + EdgeDriver checks",
+      "limit": "Gate runs real WebDriver mode; standalone default remains preflight unless env flag is set"
+    },
+    {
+      "index": 38,
+      "promise": "Desktop app buildable",
+      "source": "Tauri/Vite/Rust project files",
+      "evidence": "`npm run build`; `npm run tauri:build`",
+      "limit": "Windows build currently validated"
+    },
+    {
+      "index": 39,
+      "promise": "Local JSON/CSV/audit exports",
+      "source": "`MODULE_CONTRACT.md`; `src-tauri/src/services/export.rs`",
+      "evidence": "`cargo test`; `services::export::*`; `services::export::tests::writes_fiscal_audit_json_with_chain_verification`; UI invokes `invoice_export_json`, `invoice_export_csv`, `fiscal_audit_export`; `npm run validate:ui-contract`; `npm run validate:browser-smoke`",
+      "limit": "JSON/CSV/audit are local evidence; audit export includes local chain verification, CSV/audit filters accepted but MVP exports all rows"
+    },
+    {
+      "index": 40,
+      "promise": "Restore backup stays non-destructive",
+      "source": "`MODULE_CONTRACT.md`; `src-tauri/src/services/export.rs`",
+      "evidence": "`cargo test`; `services::export::tests::validates_restore_source_extension`; UI invokes `backup_restore`; `npm run validate:ui-contract`",
+      "limit": "Preflight only; active database is not replaced in MVP"
+    }
+  ],
+  "artifacts": {
+    "normative_sources": [
+      {
+        "id": "cumplefactura_technical_matrix",
+        "role": "normative source cumplefactura_technical_matrix",
+        "path": "C:\\03 LEGISLACION\\AEAT\\MATRIZ_TECNICA_CUMPLEFACTURA_2026-05-27.md",
+        "bytes": 5081,
+        "sha256": "9f2297c110ad4eb8ea1da4c94c202f3febd8fbf917effee3b0a9f9022eca1515"
+      },
+      {
+        "id": "verifactu_hash_detail_pdf",
+        "role": "normative source verifactu_hash_detail_pdf",
+        "path": "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\Detalle especificaciones huella hash registros facturacion - AEAT.pdf",
+        "bytes": 1174110,
+        "sha256": "f4334c254bb875b417247b54315199f89d75a8c4814dfd1e86efec562653d7de"
+      },
+      {
+        "id": "verifactu_signature_pdf",
+        "role": "normative source verifactu_signature_pdf",
+        "path": "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\Especificaciones firma electronica registros facturacion - AEAT.pdf",
+        "bytes": 1497921,
+        "sha256": "60953acd5d437a745db9076377739d8ef3f05c31967c1424cd4f6a8ac04af481"
+      },
+      {
+        "id": "verifactu_wsdl",
+        "role": "normative source verifactu_wsdl",
+        "path": "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\SistemaFacturacion VERI-FACTU.wsdl",
+        "bytes": 8780,
+        "sha256": "05919120708ff7650612fa6683c9336eaf919335d9a4db10e86759190af48602"
+      },
+      {
+        "id": "verifactu_suministro_lr_xsd",
+        "role": "normative source verifactu_suministro_lr_xsd",
+        "path": "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\SuministroLR VERI-FACTU.xsd",
+        "bytes": 1573,
+        "sha256": "cbdac8d427cc5ab5d77ca48974cab0f35d6bb819c4c66db361681e3710aeba36"
+      },
+      {
+        "id": "verifactu_suministro_informacion_xsd",
+        "role": "normative source verifactu_suministro_informacion_xsd",
+        "path": "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\SuministroInformacion VERI-FACTU.xsd",
+        "bytes": 49540,
+        "sha256": "ee4c1655175644de44c4c25055ffeb8e5f4bb4bc3834ce8254d4222ef18c8aa1"
+      }
+    ],
+    "repo": [
+      {
+        "id": "matrix",
+        "role": "repo artifact matrix",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\REGULATORY_EVIDENCE_MATRIX.md",
+        "bytes": 18634,
+        "sha256": "7a32d11ca976c025f8ace7c5fefdef940660cb8e796f8c974546dc8aa321e14b"
+      },
+      {
+        "id": "module_contract",
+        "role": "repo artifact module_contract",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\MODULE_CONTRACT.md",
+        "bytes": 17718,
+        "sha256": "ed6c5598ad2207424ede4626db7b5151ce28777728271a05b7b71e8bfc5d09f9"
+      },
+      {
+        "id": "test_plan",
+        "role": "repo artifact test_plan",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\REGULATORY_TEST_PLAN.md",
+        "bytes": 7792,
+        "sha256": "d067e0bfcaa6f72929572fb4924c15ced468d34b627a64a017e5add611cfbe6a"
+      },
+      {
+        "id": "package_scripts",
+        "role": "repo artifact package_scripts",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\package.json",
+        "bytes": 1962,
+        "sha256": "2bb8878b3d39a523a0113cd5e4e51df7c55b02f2b6d21e6c28f6400c50cb804a"
+      },
+      {
+        "id": "regulatory_gate",
+        "role": "repo artifact regulatory_gate",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\run-regulatory-gate.ps1",
+        "bytes": 8827,
+        "sha256": "17b05e56ef3278ef980158c5c216e7357ebf8ca7f78793b174ed8fe1b603b131"
+      },
+      {
+        "id": "matrix_verifier",
+        "role": "repo artifact matrix_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-regulatory-evidence.mjs",
+        "bytes": 3597,
+        "sha256": "aed3511505caeb9a335b77ec6b771f8c4da1cf9439fccfdad06d61eeada29b35"
+      },
+      {
+        "id": "core_e2e_verifier",
+        "role": "repo artifact core_e2e_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-core-e2e.ps1",
+        "bytes": 1292,
+        "sha256": "d93487e9a091d1341fcfafa036d18ae67059acf3dc263a79d43e6f26a6f76b18"
+      },
+      {
+        "id": "browser_smoke_verifier",
+        "role": "repo artifact browser_smoke_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-browser-smoke.mjs",
+        "bytes": 23650,
+        "sha256": "a25d374fe8752863e057e15ba0af75f8b1323ce2194b48ef179f15473e8622ff"
+      },
+      {
+        "id": "secret_scan_verifier",
+        "role": "repo artifact secret_scan_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-secret-scan.mjs",
+        "bytes": 4167,
+        "sha256": "c522d2d729ca4f0c773bde02b8aa4df321ea9cc2390d4cd9ab43b31953475038"
+      },
+      {
+        "id": "tauri_desktop_e2e_verifier",
+        "role": "repo artifact tauri_desktop_e2e_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-tauri-desktop-e2e.mjs",
+        "bytes": 10232,
+        "sha256": "49a4ffbebd27c6aa4fcb0b115fcce19b3b7d4d35d94c5088465cc244e24c86ae"
+      },
+      {
+        "id": "ledger_verifier",
+        "role": "repo artifact ledger_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-evidence-ledger.mjs",
+        "bytes": 15392,
+        "sha256": "36778b2e10385be1258336598016af7d4cee16cca9aadd9128a37f1b7d26d279"
+      },
+      {
+        "id": "contapro_sidecar_importer",
+        "role": "repo artifact contapro_sidecar_importer",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\import-contapro-sidecar-evidence.mjs",
+        "bytes": 5466,
+        "sha256": "643b5c71b42ee1387e1b34ed6e3f8b4529558998e44daa0ca0773cfa8672e8f7"
+      },
+      {
+        "id": "external_acceptance_verifier",
+        "role": "repo artifact external_acceptance_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-external-acceptance-evidence.mjs",
+        "bytes": 12542,
+        "sha256": "251031f6f36421a297d54e90500a5c2c7b5e0edb9a562d882e86018a1b865e89"
+      },
+      {
+        "id": "external_readiness_verifier",
+        "role": "repo artifact external_readiness_verifier",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tools\\verify-external-readiness.mjs",
+        "bytes": 13359,
+        "sha256": "c0a9004645515dfce7e2a905bf9e502fc56913fb0b237fba04e17eb7a016ae60"
+      },
+      {
+        "id": "core_e2e_test",
+        "role": "repo artifact core_e2e_test",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\src-tauri\\src\\core_e2e.rs",
+        "bytes": 12289,
+        "sha256": "d2c31ddb2804f4483959f2bf2f6c5dc3bd602fa5aacdaec2e0d193fbef6d2e80"
+      },
+      {
+        "id": "verifactu_fixture",
+        "role": "repo artifact verifactu_fixture",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\fixtures\\verifactu-registro-alta-basic.xml",
+        "bytes": 2904,
+        "sha256": "3016e9edd918f721343fe37a808000ecf020dc38e377b2a3ef0b61cec7a28de2"
+      },
+      {
+        "id": "external_acceptance_manifest_fixture",
+        "role": "repo artifact external_acceptance_manifest_fixture",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\fixtures\\external-acceptance-manifest.example.json",
+        "bytes": 1321,
+        "sha256": "2595ac4341563701a1c0f6bdc6671b7a8c284f17c3dd412052c820b45eaf76f8"
+      },
+      {
+        "id": "next_mvp_plan",
+        "role": "repo artifact next_mvp_plan",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\docs\\plans\\2026-06-02-cumplefactura-next-mvp.md",
+        "bytes": 2785,
+        "sha256": "2ad45afe62a5f53ee9d33539db61a34ccf5f7a36e360687ed24ecee2c8d55e2e"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "latest_core_e2e_json",
+        "role": "evidence artifact latest_core_e2e_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e.json",
+        "bytes": 1830,
+        "sha256": "203b2f57d4fbbdcef117ef235cadfff0fcd2a4d7cb61e9530778e02de3e1a026"
+      },
+      {
+        "id": "latest_core_e2e_xml",
+        "role": "evidence artifact latest_core_e2e_xml",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e-verifactu.xml",
+        "bytes": 2916,
+        "sha256": "be1ad8413aa57a958d29736a05fe4bc2d99278c276803a74249fb4ab34bdd672"
+      },
+      {
+        "id": "latest_core_e2e_pdf",
+        "role": "evidence artifact latest_core_e2e_pdf",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e-invoice.pdf",
+        "bytes": 1120,
+        "sha256": "6ce2a66c028d91e80046840f4ee3f713a35e46fbdb1d9426a4dbc98ab4a00aad"
+      },
+      {
+        "id": "latest_core_e2e_invoice_json",
+        "role": "evidence artifact latest_core_e2e_invoice_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e-invoice.json",
+        "bytes": 971,
+        "sha256": "a9982ef32ec2c0f32acd58251f955fe75e2a67502e6ea25c3d9ecaa5bd543e3a"
+      },
+      {
+        "id": "latest_core_e2e_invoices_csv",
+        "role": "evidence artifact latest_core_e2e_invoices_csv",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e-invoices.csv",
+        "bytes": 608,
+        "sha256": "0dbbe179da53273c1921c435e18c8b3c1220432d174d8fdc782865eb94418801"
+      },
+      {
+        "id": "latest_core_e2e_audit_json",
+        "role": "evidence artifact latest_core_e2e_audit_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-core-e2e-audit.json",
+        "bytes": 2678,
+        "sha256": "b0c5034acbf59cfab01d38e96ebcfa0383977f53e92f57cefc7dcc6a970ee7b6"
+      },
+      {
+        "id": "latest_browser_smoke_json",
+        "role": "evidence artifact latest_browser_smoke_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-browser-smoke.json",
+        "bytes": 1589,
+        "sha256": "9d6ff138e04fa0957babbdccb9a84c70f3cb68af46d2b8138122d43bbaa96a97"
+      },
+      {
+        "id": "latest_browser_smoke_png",
+        "role": "evidence artifact latest_browser_smoke_png",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-browser-smoke.png",
+        "bytes": 155663,
+        "sha256": "67fdcd5dec17a5c40015c724616afcd6ab46104e452b706c0f598dfe7e34134b"
+      },
+      {
+        "id": "latest_secret_scan_json",
+        "role": "evidence artifact latest_secret_scan_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-secret-scan.json",
+        "bytes": 463,
+        "sha256": "d5cc97aa0f0d1f13c33b5ba7e6676561ecb856610f4c86ce813b749dcdaf9a67"
+      },
+      {
+        "id": "latest_secret_scan_md",
+        "role": "evidence artifact latest_secret_scan_md",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-secret-scan.md",
+        "bytes": 421,
+        "sha256": "fc21d67be1c1a2b7e8f106cfe5363d6e9c724c62ead7be318842920f0c45c4b9"
+      },
+      {
+        "id": "latest_tauri_desktop_e2e_json",
+        "role": "evidence artifact latest_tauri_desktop_e2e_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-tauri-desktop-e2e.json",
+        "bytes": 1606,
+        "sha256": "6e0408c99c3b508afa836f94fdce869513140420cd871fcf7c3a9394de2e4f64"
+      },
+      {
+        "id": "latest_tauri_desktop_e2e_md",
+        "role": "evidence artifact latest_tauri_desktop_e2e_md",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-tauri-desktop-e2e.md",
+        "bytes": 770,
+        "sha256": "da100d27ea4cbe023500c04fbbf3012a7c18594b02e3f83e0c61a34d19543e5d"
+      },
+      {
+        "id": "latest_external_acceptance_json",
+        "role": "evidence artifact latest_external_acceptance_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-external-acceptance-evidence.json",
+        "bytes": 995,
+        "sha256": "631130c4d48a1b6faff8ee81be9e5d44829a4500127e5871b1dded267eeb9ca8"
+      },
+      {
+        "id": "latest_external_acceptance_md",
+        "role": "evidence artifact latest_external_acceptance_md",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-external-acceptance-evidence.md",
+        "bytes": 638,
+        "sha256": "f5625854c6339c1cfe7bdd4aac6a4e5222e1c9913b3e323b8eae811e50f58a83"
+      },
+      {
+        "id": "latest_contapro_sidecar_import_json",
+        "role": "evidence artifact latest_contapro_sidecar_import_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-contapro-sidecar-import.json",
+        "bytes": 3011,
+        "sha256": "7ebc2c1bd7261cd75b6ba21b8639cc1d30d6e03860eca70d35f5a68dc58c2a76"
+      },
+      {
+        "id": "latest_contapro_sidecar_import_md",
+        "role": "evidence artifact latest_contapro_sidecar_import_md",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-contapro-sidecar-import.md",
+        "bytes": 1089,
+        "sha256": "3ffb43997e157dfcddc2e40875fd7124a72d69873e8b3083023d666b924994a8"
+      },
+      {
+        "id": "latest_external_readiness_json",
+        "role": "evidence artifact latest_external_readiness_json",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-external-readiness.json",
+        "bytes": 11927,
+        "sha256": "639e46beacdde5a49784953e0bc5d564b963789def35f01370b3e5bff07d3e5d"
+      },
+      {
+        "id": "latest_external_readiness_md",
+        "role": "evidence artifact latest_external_readiness_md",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\latest-external-readiness.md",
+        "bytes": 2186,
+        "sha256": "b1baefa995d7a5cfb4f00f0324ad1b8cceabe33024f0082c5ab74eb570d000be"
+      }
+    ],
+    "gate_logs": [
+      {
+        "id": "20260628-212017-browser_smoke",
+        "role": "gate log 20260628-212017-browser_smoke.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-browser_smoke.log",
+        "bytes": 642,
+        "sha256": "a064bd3a722080c844760d992281a5408da328a379220a9f938ea520831c55dc"
+      },
+      {
+        "id": "20260628-212017-cargo_fmt_check",
+        "role": "gate log 20260628-212017-cargo_fmt_check.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-cargo_fmt_check.log",
+        "bytes": 972,
+        "sha256": "2e617e3bfdb3c56772be617239d08788c42dea2ed3e0276f88b39c7b738e6064"
+      },
+      {
+        "id": "20260628-212017-cargo_test",
+        "role": "gate log 20260628-212017-cargo_test.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-cargo_test.log",
+        "bytes": 13418,
+        "sha256": "22af5d44f7e09d3e2444b19916fa4410330fc21e068a1e7ea03085b20126577c"
+      },
+      {
+        "id": "20260628-212017-contapro_sidecar_import",
+        "role": "gate log 20260628-212017-contapro_sidecar_import.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-contapro_sidecar_import.log",
+        "bytes": 700,
+        "sha256": "818b9a41832dda18cc29c9f63eee49376e70b4b57594849c2615e67a76737414"
+      },
+      {
+        "id": "20260628-212017-core_e2e",
+        "role": "gate log 20260628-212017-core_e2e.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-core_e2e.log",
+        "bytes": 1990,
+        "sha256": "d48170b65405e4f168a73d7e629fd75f8286ef5af4ab58728975a858baa08dfb"
+      },
+      {
+        "id": "20260628-212017-evidence_matrix",
+        "role": "gate log 20260628-212017-evidence_matrix.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-evidence_matrix.log",
+        "bytes": 336,
+        "sha256": "65bac1216e90c1b208c37cb85c03f4239ce3b2fdd40ed1c760dbe7891fd29bd6"
+      },
+      {
+        "id": "20260628-212017-external_acceptance",
+        "role": "gate log 20260628-212017-external_acceptance.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-external_acceptance.log",
+        "bytes": 812,
+        "sha256": "118771b5cd4baba650343a00b9565de6232fc3898a2949bc265bb8193ebd116b"
+      },
+      {
+        "id": "20260628-212017-external_readiness",
+        "role": "gate log 20260628-212017-external_readiness.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-external_readiness.log",
+        "bytes": 708,
+        "sha256": "46f96964a2d7fc66faa98b1674b49b5d15069cdd52b63d9535d84e4ea4d8b815"
+      },
+      {
+        "id": "20260628-212017-npm_build",
+        "role": "gate log 20260628-212017-npm_build.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-npm_build.log",
+        "bytes": 824,
+        "sha256": "451316688e13753a23bccf37809f471820f0c3e1da382a7f38c04f35e2778f48"
+      },
+      {
+        "id": "20260628-212017-secret_scan",
+        "role": "gate log 20260628-212017-secret_scan.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-secret_scan.log",
+        "bytes": 576,
+        "sha256": "e8323c1cbce07a11d64f09866b3ba49afc9fb3ad021e07a3cadc9d4610d60d94"
+      },
+      {
+        "id": "20260628-212017-tauri_build",
+        "role": "gate log 20260628-212017-tauri_build.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-tauri_build.log",
+        "bytes": 1706,
+        "sha256": "1406050407167d4ba24ffd6162efbc325ce7b95a7d5111aa8aaa7943a086d95f"
+      },
+      {
+        "id": "20260628-212017-tauri_desktop_e2e",
+        "role": "gate log 20260628-212017-tauri_desktop_e2e.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-tauri_desktop_e2e.log",
+        "bytes": 636,
+        "sha256": "91fbe1aa7210a79b2d69ec2963d52ddf496610af39793f568f6d402e0d99901d"
+      },
+      {
+        "id": "20260628-212017-ui_contract",
+        "role": "gate log 20260628-212017-ui_contract.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-ui_contract.log",
+        "bytes": 51804,
+        "sha256": "e35ec88797073ae732a00fc66a0488868d235d7e4457de5d7a6f175e1364fe0b"
+      },
+      {
+        "id": "20260628-212017-verifactu_xsd_fixture",
+        "role": "gate log 20260628-212017-verifactu_xsd_fixture.log",
+        "path": "C:\\07 DESARROLLO\\apps\\CumpleFactura\\tests\\regulatory\\evidence\\20260628-212017-verifactu_xsd_fixture.log",
+        "bytes": 668,
+        "sha256": "dc8c0276acd305e8aadd32bf81689cef585c2a10096ea893ffc59c525b19defe"
+      }
+    ]
+  },
+  "limits": [
+    "No artifact hash is a legal certification.",
+    "No AEAT network transmission, CSV retrieval or external acceptance is performed by this ledger.",
+    "External acceptance intake stores and hashes a redacted manifest only; without a supplied manifest it records not_provided.",
+    "Certificate-backed XAdES remains pending unless sidecar runs with a real authorized certificate.",
+    "Desktop Tauri standalone default is preflight; regulatory gate enables real WebDriver mode."
+  ]
+}

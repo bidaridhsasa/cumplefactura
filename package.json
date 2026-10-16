@@ -1,0 +1,45 @@
+{
+  "name": "cumplefactura",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 1420",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "validate:ui-contract": "node tools/verify-ui-contract.mjs",
+    "validate:evidence-matrix": "node tools/verify-regulatory-evidence.mjs",
+    "validate:evidence-ledger": "node tools/verify-evidence-ledger.mjs",
+    "validate:secret-scan": "node tools/verify-secret-scan.mjs",
+    "validate:tauri-desktop-e2e": "node tools/verify-tauri-desktop-e2e.mjs",
+    "validate:contapro-sidecar-import": "node tools/import-contapro-sidecar-evidence.mjs",
+    "validate:external-acceptance": "node tools/verify-external-acceptance-evidence.mjs",
+    "validate:external-readiness": "node tools/verify-external-readiness.mjs",
+    "validate:core-e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/verify-core-e2e.ps1",
+    "validate:browser-smoke": "node tools/verify-browser-smoke.mjs",
+    "validate:verifactu:xsd": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate-verifactu-xsd.ps1 -XmlPath tests/regulatory/fixtures/verifactu-registro-alta-basic.xml",
+    "validate:regulatory": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/run-regulatory-gate.ps1"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tauri-apps/cli": "^2.5.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "chromedriver": "^149.0.1",
+    "edgedriver": "^6.3.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "project": "cumplefactura",
+  "canonicalLoginCore": "../../tools/login-core",
+  "status": "prepared",
+  "identityProvider": "managed-keycloak",
+  "distribution": "local-first-pre-mvp",
+  "tenantModel": "per-client-or-per-installation",
+  "adapter": "fastapi-local",
+  "loginRoutes": [],
+  "notes": [
+    "Do not block local-first MVP on SSO.",
+    "If SaaS or sync server appears, reuse login-core tenants and invitations."
+  ]
+}
+

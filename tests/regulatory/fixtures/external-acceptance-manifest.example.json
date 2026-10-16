@@ -1,0 +1,26 @@
+{
+  "schema_version": "1",
+  "claim_id": "example-aeat-verifactu-homologation-redacted",
+  "provider": "AEAT_VERIFACTU",
+  "environment": "homologation",
+  "operation": "RegFactuSistemaFacturacion",
+  "performed_at": "2026-06-01T00:00:00.000Z",
+  "result_status": "accepted",
+  "external_reference_redacted": "AEAT-VERIFACTU-[REDACTED]",
+  "external_reference_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "certificate_fingerprint_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "request_artifact_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "response_artifact_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "evidence_files": [
+    {
+      "role": "redacted_external_response",
+      "path": "relative/path/to/redacted-response.txt",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ],
+  "source_normative_paths": [
+    "C:\\03 LEGISLACION\\AEAT\\FACTURACION Y SIF\\05 DOCUMENTACION TECNICA AEAT\\01 VERIFACTU\\SistemaFacturacion VERI-FACTU.wsdl",
+    "C:\\03 LEGISLACION\\AEAT\\MATRIZ_TECNICA_CUMPLEFACTURA_2026-05-27.md"
+  ],
+  "redaction_note": "Template only. Replace hashes and paths with real redacted artifacts generated outside the gate."
+}
