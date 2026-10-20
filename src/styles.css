@@ -39,7 +39,7 @@ button {
   background: #fbfcfa;
   border: 1px solid var(--border);
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: calc(100vh - 48px);
 }
 
@@ -89,6 +89,8 @@ button.primary {
 .content {
   display: grid;
   gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   padding: 32px;
 }
 
@@ -501,7 +503,7 @@ p {
   }
 
   .workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
@@ -692,6 +694,7 @@ button:disabled {
 .sidecarForms {
   display: grid;
   gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidecarForms .backupForm {
@@ -730,10 +733,100 @@ button:disabled {
   .backupForm {
     align-items: stretch;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lists {
     grid-template-columns: 1fr;
+  }
+}
+
+.panel,
+.card,
+.sidebar {
+  min-width: 0;
+}
+
+@media (max-width: 1080px) {
+  .content {
+    padding: 24px;
+  }
+
+  header {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .sidebar {
+    padding: 14px 16px;
+  }
+
+  .brand {
+    margin-bottom: 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  input,
+  select {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .sidecarForms .backupForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .sidecarForms .backupForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.backupForm > *,
+.sidecarForms > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.editorTop,
+.editorFooter {
+  flex-wrap: wrap;
+}
+
+.editorTop > *,
+.editorFooter > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+  }
+
+  nav {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   }
 }
