@@ -17,7 +17,7 @@ El nuevo comando `invoice_pdf_preview(invoiceId)` solo lee la factura persistida
 | Comprobación | Evidencia / alcance |
 |---|---|
 | Build, contrato UI, preservación de 39 invocaciones | Correctos en local |
-| Tests puros de interfaz | 19 correctos: estados, importes, fecha, numeración y rutas |
+| Tests puros de interfaz | 25 correctos: 19 de estados/importes/fecha/numeración/rutas y 6 de WebDriver heredados de fase 1 |
 | Rustfmt y Rust Linux | 68 tests correctos; preferencias, PDF, SQLite, huellas, XML y núcleo |
 | XSD y core E2E | Correctos; logs y `native-core/` |
 | Flujo de navegador | Correcto con mock Tauri; pérdida de ACK de emisión/abono, doble clic, PDF obsoleto y configuración |
