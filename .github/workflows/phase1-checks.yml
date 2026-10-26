@@ -3,8 +3,6 @@ name: CumpleFactura - UI y núcleo nativo
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [ux/cumplefactura-fase-1]
   workflow_dispatch:
 
 permissions:

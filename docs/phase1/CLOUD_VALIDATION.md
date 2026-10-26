@@ -17,6 +17,7 @@ Fecha: 2026-10-26. La fase sigue abierta; este informe no acredita presentación
 | `npm run validate:verifactu:xsd` | Correcto para el fixture |
 | `npm run validate:regulatory` | Bloqueado al resolver `cargo.exe` en el runner Windows |
 | `npm run validate:secret-scan` en el workspace | Falla por `tokens = json.load(fh)` en el código Python público de Replica, no versionado en este PR |
+| Escáner sobre un `git archive HEAD` limpio | Correcto, cero hallazgos; no incluye los archivos locales de preparación |
 
 Los logs y los artefactos sintéticos del núcleo están en `native-core/`. Se conservaron las evidencias históricas de `tests/regulatory/evidence/`. Los resultados no demuestran uso de certificados, envío SOAP ni aceptación de la AEAT.
 
@@ -35,6 +36,6 @@ En este entorno se cargan las rutas privadas con `source /workspace/.setup/tauri
 
 ## Revisión y límites pendientes
 
-Una revisión independiente del diff de esta continuación no encontró incidencias confirmadas. Se comprobaron formatos y aspecto del PNG; el aspecto del icono en una ventana o instalador sigue pendiente. La revisión no ejecutó Windows ni GitHub Actions: los logs locales son evidencia Linux, y los jobs remotos deben verificarse por separado. El refactor anterior ya tuvo su propia revisión.
+Una revisión independiente del diff de esta continuación no encontró incidencias confirmadas. Se comprobaron formatos y aspecto del PNG; el aspecto del icono en una ventana o instalador sigue pendiente. La revisión no ejecutó Windows ni GitHub Actions: los logs locales son evidencia Linux, y los jobs remotos deben verificarse por separado. Tras subir el commit 9735485, GitHub inició ambos jobs; no se presume su resultado. Se usa solo el evento del PR para evitar duplicar la ejecución al subir una rama con PR abierto. El refactor anterior ya tuvo su propia revisión.
 
 Quedan el gate regulatorio completo, las cuatro pruebas XSD compiladas solo para Windows, la ventana Tauri, la publicación del paquete privado y las preferencias de cuenta web. El falso positivo de Replica se conserva visible: no se ha añadido una exclusión ni cambiado las reglas del escáner.
