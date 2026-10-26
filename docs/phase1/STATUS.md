@@ -15,16 +15,17 @@ Rama: `ux/cumplefactura-fase-1`, desde main a2d429c. No fusionar. El trabajo con
 
 ## Verificación
 
-Build, contrato de UI y smoke original con mock Tauri pasan. Comprobación de rutas: el salto al contenido no cambia la pantalla. Se capturan y analizan nueve áreas en claro/oscuro a 1024×700 y 1440×900; los resultados exactos están en browser-results.json. No confundir la inspección del mock con pruebas nativas o envío AEAT.
+Build, contrato de UI y smoke original con mock Tauri pasan. En la continuación también pasan `cargo fmt --all --check`, `cargo test --locked` (67 pruebas Linux, incluida la preferencia SQLite), `validate:core-e2e` y `validate:verifactu:xsd`. Las cuatro pruebas limitadas por `cfg(target_os = "windows")` requieren el job Windows; el total Linux no las incluye. Comprobación de rutas: el salto al contenido no cambia la pantalla. Se capturan y analizan nueve áreas en claro/oscuro a 1024×700 y 1440×900; los resultados exactos están en browser-results.json. No confundir la inspección del mock con pruebas nativas o envío AEAT.
 
 La revisión encontró y se corrigieron pérdida de mensajes en rutas secundarias, salto al contenido interpretado como ruta, contraste de enlaces Menta sobre blanco, falta de nombres de campos, carrera de preferencias y densidad sin efecto en listas. Los registros de validación conservan fallos iniciales; no se filtran ni se presentan como verdes.
 
 ## Bloqueos para cerrar la fase
 
-- `npm run validate:regulatory` no arranca: `powershell: not found`.
-- No están instalados cargo/rustc ni el runtime nativo Windows: nuevo test de preferencias SQLite y tauri:dev no ejecutados. Cambios nativos no se declaran validados.
+- PowerShell 7.5.2 y Rust 1.99.1 ya instalados en el entorno privado del workspace. `npm run validate:regulatory` sigue bloqueado: su runner busca `cargo.exe` y `npm.cmd`. No se ha cambiado ni rebajado ese gate.
+- El test de preferencias SQLite y el núcleo E2E ya pasan en Linux. La compilación detectó la ausencia de `icons/icon.png`; se generaron iconos de escritorio desde `public/favicon.svg` mediante la CLI de Tauri. Quedan por ejecutar la ventana Tauri y los checks Windows. Se añadió CI explícita para las comprobaciones parciales; su ejecución remota no se presume.
 - Publicación privada @emprendurias-bdr/ui pendiente; el consumidor usa la instantánea local para ser reproducible.
 - Persistencia de cuenta web y backend web quedan pendientes; no simularla con almacenamiento de sesión.
-- Este PR debe mantenerse en borrador hasta verificar los gates exigidos y corregir cualquier resultado pendiente.
+- El escáner de secretos del workspace devuelve un falso positivo sobre `tokens = json.load(fh)` en la copia local no versionada de Replica. No se ha excluido esa carpeta ni debilitado el escáner. La CI escanea el checkout del PR, que no incluye esa copia; su resultado se verifica aparte.
+- Este PR debe mantenerse en borrador hasta verificar los gates exigidos y corregir cualquier resultado pendiente. Los logs y artefactos nuevos están en `native-core/`; no se sobrescribió la evidencia histórica de `tests/regulatory/evidence/`.
 
 Resultado final automatizado: 36 casos de nueve áreas a 1024×700/1440×900 en claro y oscuro, cero violaciones axe detectadas; build, contrato y smoke con mock pasan. Los tres selectores de rectificativa y campos técnicos mantienen ahora nombres visibles. El contrato normaliza únicamente espacios en sus guards para tolerar formato JSX multilínea, sin quitar comprobaciones.

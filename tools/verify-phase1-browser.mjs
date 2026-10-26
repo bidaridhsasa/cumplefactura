@@ -2,6 +2,7 @@ import { chromium } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { installTauriMock } from "./browser-tauri-mock.mjs";
 const server = spawn(
@@ -26,7 +27,7 @@ try {
     await new Promise((r) => setTimeout(r, 200));
   }
   browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath: existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined,
     headless: true,
   });
   const results = [];
