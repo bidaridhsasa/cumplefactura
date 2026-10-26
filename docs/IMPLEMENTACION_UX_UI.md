@@ -23,7 +23,7 @@ Guía para la sesión que implemente el rediseño. Diseño: `docs/UX_UI.md`. Maq
 | Tarea | Dónde |
 |---|---|
 | Estructura `src/features/{invoices,customers,products,verifactu,settings,onboarding}` + `src/shared/` (tipos, cliente Tauri) | hoy todo en `src/App.tsx` (~2.300 líneas) |
-| Router (p. ej. `react-router`) con las 6 áreas de `UX_UI.md` | `src/main.tsx` |
+| Router (p. ej. `react-router`) con las 9 áreas de `UX_UI.md` (las de documentos comerciales pueden quedar vacías hasta la fase 4) | `src/main.tsx` |
 | `@bdr/ui/tokens.css` + fuentes; retirar verdes `#1d5f4a` e Inter de `src/styles.css` | `src/styles.css` |
 | `AppShell` con empresa/periodo e indicador de conexión AEAT y cola | shell |
 | Ajustes: tema y densidad persistidos en SQLite (escritorio) / preferencias de cuenta (web) | `features/settings` |
@@ -50,10 +50,22 @@ Guía para la sesión que implemente el rediseño. Diseño: `docs/UX_UI.md`. Maq
 | Modo NO VERI*FACTU: firma de registros (XAdES) y sin envío | Detrás de un ajuste, con aviso claro |
 | Tests: sin conexión, caída a mitad de lote, respuesta con errores, rechazo, reenvío idempotente | `tests/regulatory/` |
 
-## Fase 4 — Versión web
+## Fase 4 — Documentos comerciales y recurrentes
 
-- Misma SPA en Vercel + Supabase. **El navegador no puede llamar a la AEAT con el certificado del cliente**: el envío lo hace un backend de BDR (decisión pendiente: BDR como representante/colaborador social o certificado del cliente en KMS/HSM; ver `UX_UI.md` › Por definir).
-- Offline en la web: PWA con cola local (IndexedDB) para cortes breves; para varias personas sin conexión, serie por dispositivo o rangos reservados. Decidir antes de implementar.
+| Tarea | Notas |
+|---|---|
+| Tipos `quote` (presupuesto), `proforma`, `delivery_note` (albarán) con series propias y estados (borrador, enviado, aceptado/rechazado, convertido) | No generan registro VERI*FACTU; el PDF dice «Documento sin valor fiscal» salvo el albarán, que dice «Albarán» |
+| Conversión con un clic: presupuesto → proforma → albarán → factura, guardando el enlace entre documentos | La factura copia líneas; el número fiscal se asigna al emitir |
+| Factura recapitulativa desde varios albaranes del mismo cliente y mes | Selector de albaranes pendientes de facturar |
+| Rectificativa (abono) = nota de crédito; asistente R1–R5 existente | Etiqueta «Rectificativa (abono)» |
+| Recurrentes: plantilla + periodicidad; generación **solo en servidor y con conexión**, idempotente por `cliente + plantilla + periodo`; si falla o no hay conexión, borrador pendiente con aviso | Tests: doble ejecución del programador no crea dos facturas |
+
+## Fase 5 — Versión web y emisión sin conexión
+
+- Misma SPA en Vercel + Supabase. El navegador no puede llamar a la AEAT con certificado del cliente: remite el backend de BDR **como colaborador social (objetivo) o con apoderamiento de cada empresa (alternativa)**, con el certificado de BDR en KMS/HSM. Registrar el apoderamiento/autorización por empresa y mostrarlo en Verifactu › Conexión y certificado.
+- **Emisión sin conexión** (maqueta 6): permiso `offline_issuer` asignable a una sola persona por empresa; serie exclusiva; límites (horas y nº de facturas sin sincronizar, importe máximo); sin rectificativas, anulaciones ni recurrentes sin conexión. Los demás usuarios sin conexión solo crean borradores.
+- Cola local: SQLite en escritorio; IndexedDB (PWA) en web. Al reconectar: subir facturas, validar que la serie exclusiva no tiene huecos ni duplicados, remitir en orden de la cadena.
+- Tests: dos usuarios sin conexión a la vez (solo uno puede emitir), límite superado (bloquea emitir y lo explica), reconexión con cola larga, caducidad del permiso.
 
 ## Prompt sugerido para la sesión de implementación
 

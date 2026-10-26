@@ -40,7 +40,9 @@ Hoy: verdes `#1d5f4a`, Inter, solo modo claro → Menta + Pizarra, Host Grotesk 
 
 ## Arquitectura de información
 
-Barra lateral: **Facturas · Nueva factura · Clientes · Productos · Verifactu · Ajustes**. Barra superior común de la suite (empresa y periodo siempre visibles); indicador de conexión con la AEAT y registros en cola.
+Barra lateral: **Facturas · Presupuestos · Proformas · Albaranes · Recurrentes · Clientes · Productos · Verifactu · Ajustes**. «Nueva factura» pasa a botón en la cabecera (`N`). Barra superior común de la suite (empresa y periodo siempre visibles); indicador de conexión con la AEAT y registros en cola.
+
+Documentos comerciales y su flujo: **Presupuesto → Proforma → Albarán → Factura** (cada paso se crea desde el anterior con un clic, conservando líneas y enlace). Solo la factura genera registro VERI*FACTU; presupuestos, proformas y albaranes llevan series propias sin valor fiscal y lo dicen en el PDF. Varios albaranes del mes pueden agruparse en una factura recapitulativa. **Nota de crédito** = factura rectificativa (por ejemplo, un abono por diferencias negativas); en la interfaz se llama «Rectificativa (abono)» para no confundir.
 - Primer arranque: asistente de 4 pasos (empresa, fiscalidad, primera serie, certificado y carpeta de exportación).
 - Ventana mínima 1024×700; el menú se pliega por debajo de 1200 px; diálogos nativos para abrir/guardar.
 
@@ -62,7 +64,11 @@ Cliente, serie, fecha; líneas con cantidad, precio, IVA, IRPF; totales en mono;
 ![](mockups/cumplefactura-4-verifactu.png) ![](mockups/cumplefactura-5-verifactu-oscuro.png)
 Aviso de conexión, pasos de una factura con su CSV de respuesta, cadena de registros con estado de envío e integridad, conexión y certificado (caducidad, entorno pruebas/producción). SII, TicketBAI y FACe: «No disponible todavía».
 
-### 5. Rectificativa (sin maqueta)
+### 5. Emisión sin conexión
+![](mockups/cumplefactura-6-sin-conexion.png)
+Ajustes › Emisión sin conexión: una sola persona autorizada a emitir sin conexión, con serie exclusiva y límites (horas y facturas sin sincronizar, importe máximo); sin rectificativas ni anulaciones sin conexión; recurrentes nunca sin conexión.
+
+### 6. Rectificativa (sin maqueta)
 Asistente: qué ha pasado → propuesta de causa R1–R5 y método (sustitución o diferencias) como **sugerencia** → vista previa → confirmación.
 
 ## Microcopy
@@ -85,7 +91,7 @@ WCAG 2.2 AA claro y oscuro; los pasos Verifactu llevan texto además de punto de
 ## Decisiones (2026-10-26, respuestas de Ricardo)
 
 - **Firma y envío desde el primer momento** (modo VERI*FACTU por defecto; NO VERI*FACTU con firma como opción).
-- **Online y offline**: escritorio funciona sin conexión con cola de envío; la web tolera caídas de la AEAT y cortes breves (ver *Por definir* 1).
+- **Online y offline**: escritorio funciona sin conexión con cola de envío; la web tolera caídas de la AEAT y cortes breves (reglas abajo, en la segunda ronda).
 - Tema según el sistema, con ajuste del usuario. Densidad ajustable.
 - Marca BDR con Violeta; estado fiscal de cuatro pasos siempre visible.
 - Stack: se mantiene Vite + React (corre igual en Tauri y en la web); se comparte la capa de UI con ContaPro y la app de modelos mediante el paquete `@bdr/ui` (ver `IMPLEMENTACION_UX_UI.md`).
@@ -93,9 +99,16 @@ WCAG 2.2 AA claro y oscuro; los pasos Verifactu llevan texto además de punto de
 - Las facturas emitidas entran en ContaPro con su chip fiscal de origen.
 - Login: Cuenta BDR común, opcional en Tauri.
 
+### Decisiones de la segunda ronda (2026-10-26)
+
+- **Certificado en la web**: BDR intentará darse de alta como **colaborador social**; si no, cada empresa apodera a BDR. El servidor de BDR remite con su certificado (custodiado en KMS/HSM). En escritorio, el usuario puede usar su propio certificado.
+- **Offline sin números duplicados**: solo una persona autorizada por empresa emite sin conexión, en una **serie exclusiva** (p. ej. `SC-2026`) y con límites configurables (72 h / 50 facturas sin sincronizar, importe máximo, sin rectificativas ni anulaciones). El resto prepara borradores. Al volver la conexión se sincroniza y se envía en orden.
+- **Recurrentes**: las genera el servidor, una vez por periodo y cliente (clave de idempotencia `cliente + plantilla + periodo`), solo con conexión. Si toca sin conexión, quedan como borrador pendiente.
+- **Documentos comerciales**: presupuestos, proformas, albaranes (con factura recapitulativa) y notas de crédito como rectificativas.
+
 ## Por definir
 
-1. **Certificado en la versión web.** El navegador no puede llamar a la AEAT con el certificado del cliente; el envío lo hace el servidor de BDR. Opciones: (a) BDR actúa como representante/apoderado o colaborador social con su certificado; (b) el cliente sube su certificado a una caja fuerte (KMS/HSM). Requiere decisión legal y de seguridad.
-2. **Offline en la web**: ¿PWA con cola local (IndexedDB) o solo escritorio offline? Si varias personas facturan sin conexión a la vez hay riesgo de números duplicados: hace falta serie por dispositivo o rangos reservados.
-3. ¿SII, TicketBAI y FACe se muestran como futuros o se ocultan?
-4. ¿Primer arranque de 4 pasos o importación desde ContaPro?
+1. ¿SII, TicketBAI y FACe se muestran como futuros o se ocultan?
+2. ¿Primer arranque de 4 pasos o importación desde ContaPro?
+3. Valores por defecto de los límites sin conexión (los de la maqueta son una propuesta).
+4. Nombre del producto (familia de nombres en `aeat-modelo200/docs/UX_UI.md`).
