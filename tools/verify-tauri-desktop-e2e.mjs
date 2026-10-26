@@ -1,3 +1,4 @@
+import { waitForWebDriver } from "./webdriver-readiness.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -117,7 +118,7 @@ async function realDesktopSmoke(tauriDriverPath, nativeDriverPath) {
   driver.stderr.on("data", (chunk) => logs.push(chunk.toString()));
 
   try {
-    await wait(1500);
+    await waitForWebDriver({url:`http://127.0.0.1:${port}`,driver,timeoutMs:30000});
     const sessionResponse = await fetch(`http://127.0.0.1:${port}/session`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -190,6 +191,10 @@ async function realDesktopSmoke(tauriDriverPath, nativeDriverPath) {
         "It performs no AEAT call and uses no secrets.",
       ],
     };
+  } catch (error) {
+    const reason=error instanceof Error?error.message:String(error);
+    const cause=error instanceof Error && error.cause instanceof Error?error.cause.message:"";
+    throw new Error(`${reason}${cause?`; cause: ${cause}`:""}; driver exit=${driver.exitCode}, signal=${driver.signalCode}; driver log: ${logs.join("").slice(-4000)}`);
   } finally {
     driver.kill();
   }
