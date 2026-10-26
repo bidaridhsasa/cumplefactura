@@ -33,7 +33,7 @@ jobs:
       - run: npm run validate:ui-contract
       - run: npm run validate:secret-scan
       - run: node tools/verify-refactor-contract.mjs
-      - run: node --experimental-strip-types --test tests/ui/routes.test.mjs
+      - run: node --experimental-strip-types --test tests/ui/*.test.mjs
       - run: npm run validate:browser-smoke
       - name: Revisar las nueve áreas en claro y oscuro
         run: node tools/verify-phase1-browser.mjs
@@ -76,6 +76,17 @@ jobs:
         run: npm run validate:tauri-desktop-e2e
         env:
           CUMPLEFACTURA_TAURI_DESKTOP_E2E_REAL: '1'
+      - name: Anotar fallo del E2E nativo
+        if: failure()
+        shell: pwsh
+        run: |
+          $path = 'tests/regulatory/evidence/latest-tauri-desktop-e2e.json'
+          if (Test-Path $path) {
+            $report = Get-Content $path -Raw | ConvertFrom-Json
+            $message = ($report | ConvertTo-Json -Depth 8 -Compress)
+            $encoded = $message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Tauri desktop E2E::$encoded"
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
