@@ -29,3 +29,5 @@ La revisión encontró y se corrigieron pérdida de mensajes en rutas secundaria
 - Este PR debe mantenerse en borrador hasta verificar los gates exigidos y corregir cualquier resultado pendiente. Los logs y artefactos nuevos están en `native-core/`; no se sobrescribió la evidencia histórica de `tests/regulatory/evidence/`.
 
 Resultado final automatizado: 36 casos de nueve áreas a 1024×700/1440×900 en claro y oscuro, cero violaciones axe detectadas; build, contrato y smoke con mock pasan. Los tres selectores de rectificativa y campos técnicos mantienen ahora nombres visibles. El contrato normaliza únicamente espacios en sus guards para tolerar formato JSX multilínea, sin quitar comprobaciones.
+
+Diagnóstico concreto de 40333116803: el runner usa WebView2 131.0.2903.86, pero la primera ruta de EdgeDriver era de la versión 156. Se detecta ahora el runtime WebView2 (no el navegador Edge), se usa caché por versión, se prioriza la descarga compatible y se comprueban los tres primeros componentes de versión. Siete tests Node pasan, incluidos disponibilidad y compatibilidad. El E2E real debe repetirse; este arreglo no se declara probado hasta ese resultado.

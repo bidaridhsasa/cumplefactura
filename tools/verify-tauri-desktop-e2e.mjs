@@ -1,3 +1,4 @@
+import { compatibleDriver, executableDriverVersion, installedWebViewVersion, preferDownloadedDriver } from "./webview-driver.mjs";
 import { waitForWebDriver } from "./webdriver-readiness.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
@@ -13,10 +14,13 @@ const releaseExe = resolve(root, "src-tauri/target/release/cumplefactura.exe");
 const realMode = ["1", "true", "yes", "on"].includes(
   (process.env.CUMPLEFACTURA_TAURI_DESKTOP_E2E_REAL ?? "").trim().toLowerCase(),
 );
+const webViewVersion=installedWebViewVersion();
 let resolvedEdgeDriverPath = "";
+let driverResolutionError = webViewVersion ? "" : "WebView2 runtime version could not be detected";
 try {
-  resolvedEdgeDriverPath = await downloadEdgeDriver();
-} catch {
+  if(webViewVersion)resolvedEdgeDriverPath = await downloadEdgeDriver(webViewVersion,resolve(root,"node_modules/.cache/webview-driver",webViewVersion));
+} catch (error) {
+  driverResolutionError=error instanceof Error?error.message:String(error);
   resolvedEdgeDriverPath = "";
 }
 
@@ -54,7 +58,8 @@ function commandExists(command) {
   const wherePaths = result.status === 0
     ? result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
     : [];
-  const paths = [...new Set([...wherePaths, ...localCommandCandidates(command)])];
+  const candidates=[...wherePaths,...localCommandCandidates(command)];
+  const paths=command==="msedgedriver.exe"?preferDownloadedDriver(candidates,resolvedEdgeDriverPath).filter(path=>compatibleDriver(webViewVersion,executableDriverVersion(path))):[...new Set(candidates)];
   return { ok: paths.length > 0, paths };
 }
 
@@ -217,6 +222,10 @@ let result = {
   status: Object.values(checks).every(Boolean) ? "passed" : "failed",
   mode: "preflight",
   release_exe: releaseExe,
+  webview_runtime_version: webViewVersion,
+  driver_resolution_error: driverResolutionError || null,
+  downloaded_driver_version: resolvedEdgeDriverPath?executableDriverVersion(resolvedEdgeDriverPath):null,
+  selected_driver_version: edgeDriver.paths[0]?executableDriverVersion(edgeDriver.paths[0]):null,
   checks,
   evidence: {
     tauri_driver_paths: tauriDriver.paths,

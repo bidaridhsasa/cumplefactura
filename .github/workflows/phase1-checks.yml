@@ -33,8 +33,7 @@ jobs:
       - run: npm run validate:ui-contract
       - run: npm run validate:secret-scan
       - run: node tools/verify-refactor-contract.mjs
-      - run: node --experimental-strip-types --test tests/ui/routes.test.mjs
-      - run: node --test tests/ui/webdriver-readiness.test.mjs
+      - run: node --experimental-strip-types --test tests/ui/*.test.mjs
       - run: npm run validate:browser-smoke
       - name: Revisar las nueve áreas en claro y oscuro
         run: node tools/verify-phase1-browser.mjs
