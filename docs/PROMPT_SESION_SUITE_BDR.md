@@ -8,7 +8,20 @@ Eres el especialista de producto y UI/UX Frontend de la suite BDR (Business Done
 
 ## Contexto
 
-La suite tiene seis apps: ContaPro, DocGen, CumpleFactura, AEAT, Empéñate y Alquílame (nombre por decidir). Unas tienen código (ContaPro, CumpleFactura, DocGen, AEAT en distinto grado) y otras no (Empéñate, Alquílame). `design.md` v1.1 es el sistema de diseño común y manda sobre el `docs/UX_UI.md` de cada app.
+La suite tiene seis apps: ContaPro, DocGen, CumpleFactura, AEAT (repo `aeat200`), Empéñate y Alquílame (nombre por decidir). `design.md` v1.1 es el sistema de diseño común y manda sobre el `docs/UX_UI.md` de cada app.
+
+Punto de partida de cada una:
+
+| App | Código | `docs/UX_UI.md` propio | Qué toca |
+|---|---|---|---|
+| CumpleFactura | Sí | Sí | Hecho (plantilla de esta sesión) |
+| ContaPro | Sí | Sí | Paso 1: auditar y cruzar con `design.md` |
+| aeat200 (AEAT) | Sí | Sí | Paso 1 |
+| DocGen | Sí | Sí | Paso 1 |
+| Empéñate | No | No (solo brief/ideas) | Paso 2: especificar desde cero |
+| Alquílame | No | No (solo brief/ideas) | Paso 2 |
+
+Objetivo final: que Bilel y David abran cualquiera de estos repos y encuentren, en el mismo sitio y con el mismo formato, **qué funcionalidades debe haber, qué tablas y estados las sostienen y qué pantallas las muestran**. Donde ya hay código, el documento dice qué existe y qué falta; donde no lo hay, el documento es el plano completo.
 
 En CumpleFactura ya hicimos el método completo; úsalo como plantilla:
 - `ANALISIS_REPO_UX_UI_2026-10-30.md`: stack, mapa de ramas, funcionalidades existentes, brechas frente a competidores, diagnóstico UX, reglas para Opus, preguntas.
@@ -21,15 +34,15 @@ En CumpleFactura ya hicimos el método completo; úsalo como plantilla:
 2. Pregúntame qué repos vas a analizar en esta sesión y confirma el acceso a cada uno. No asumas nombres de ramas ni rutas.
 3. Para cada app, dime en una línea si tiene código, docs, ambos o nada, y qué rama es la base.
 
-### Paso 1 — Por cada app CON código (ContaPro, DocGen, AEAT…)
-Entrega en su repo, sin cambiar código:
+### Paso 1 — Por cada app CON código y con `docs/UX_UI.md` (ContaPro, aeat200, DocGen)
+Entrega en su repo, sin cambiar código. Primero compara su `docs/UX_UI.md` con `design.md` y lista los conflictos resueltos por orden de autoridad (tabla como la del plan de CumpleFactura §1). Después:
 1. `docs/ANALISIS_REPO_<app>_<fecha>.md`, con la misma estructura que el de CumpleFactura: stack, ramas (qué hay en cada una, qué se rescata y qué se archiva), funcionalidades existentes verificadas en código (no en docs), brechas frente a 3–5 competidores reales, diagnóstico UX con capturas si las hay, reglas para Opus, preguntas.
 2. `docs/UX_AUDIT.md` según `design.md` §2 (los 7 apartados, con los `grep` ejecutados de verdad).
 3. `docs/PRODUCT_SPEC_<app>.md` (ver plantilla abajo): lo que **ya hay** marcado como `existe`, lo que falta como `pendiente`.
 4. `docs/PLAN_UX_UI_<fecha>.md` con la misma forma que el de CumpleFactura: supuestos, conflictos resueltos, PR por PR con prompt para Opus, mapas, estimación.
 
-### Paso 2 — Por cada app SIN código (Empéñate, Alquílame…)
-Entrega en su repo (o en una carpeta `docs/` nueva si el repo está vacío):
+### Paso 2 — Por cada app SIN código (Empéñate, Alquílame)
+Entrega en su repo (o en una carpeta `docs/` nueva si el repo está vacío). Parte de lo que exista (brief, notas, `design.md` §10 «Fichas por app») y de 3–5 competidores reales que analices tú:
 1. `docs/PRODUCT_SPEC_<app>.md` completo (plantilla abajo). Aquí está el peso: es lo que Bilel y David van a construir.
 2. `docs/UX_UI.md` de la app, subordinado a `design.md`: pantallas, flujos, barra inferior/lateral, acción reina, microcopy, estados. Con maquetas HTML/PNG si es posible (como `docs/mockups/` de CumpleFactura, 1440×900 y 390×844 para las apps móviles).
 3. `docs/PLAN_IMPLEMENTACION_<fecha>.md`: orden de construcción desde cero (datos → API → shell → pantallas), PR por PR, con prompt para Opus y qué parte es de Bilel/David.
