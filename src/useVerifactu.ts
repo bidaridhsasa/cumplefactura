@@ -40,12 +40,18 @@ function asSummary(result: VerifactuSubmission): VerifactuSubmissionSummary {
   };
 }
 
-/** Segundos que aún pide esperar la AEAT según el último envío con respuesta. */
-export function waitSecondsLeft(rows: VerifactuSubmissionSummary[], now = Date.now()): number {
+/** Momento (ms) a partir del que la AEAT deja enviar según el último envío con respuesta; 0 si no pide esperar. */
+export function waitUntil(rows: VerifactuSubmissionSummary[]): number {
   const last = rows.find((row) => row.tiempo_espera_envio_seconds != null && row.status !== "transport_error");
   if (!last?.tiempo_espera_envio_seconds) return 0;
   const until = Date.parse(last.submitted_at) + last.tiempo_espera_envio_seconds * 1000;
-  return Number.isFinite(until) ? Math.max(0, Math.ceil((until - now) / 1000)) : 0;
+  return Number.isFinite(until) ? until : 0;
+}
+
+/** Segundos que aún pide esperar la AEAT según el último envío con respuesta. */
+export function waitSecondsLeft(rows: VerifactuSubmissionSummary[], now = Date.now()): number {
+  const until = waitUntil(rows);
+  return until ? Math.max(0, Math.ceil((until - now) / 1000)) : 0;
 }
 
 export function useVerifactu(m: Model) {
@@ -62,7 +68,7 @@ export function useVerifactu(m: Model) {
   const [submissionsAvailable, setSubmissionsAvailable] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  const issuedInvoices = m.invoices.filter((item) => item.status === "Issued" || item.status === "Void" || item.status === "Rectified");
+  const issuedInvoices = m.invoices.filter((item) => ["Issued", "VoidPending", "Void", "Rectified"].includes(item.status));
   const selected = m.invoices.find((item) => item.id === selectedId) ?? issuedInvoices[0] ?? null;
   const needsPassword = m.passwordMode !== "env";
   const waitLeft = waitSecondsLeft(submissions, now);
@@ -149,6 +155,8 @@ export function useVerifactu(m: Model) {
     setSubmitResult(result);
     if (!submissionsAvailable) setSubmissions((current) => [asSummary(result), ...current]);
     else await loadSubmissions();
+    // S1: la respuesta a una anulación cambia el estado de la factura en Rust.
+    await m.refreshData();
   }
 
   const preflightSubmit = action(null, () => doPreflight(need(submission, t("error.sinXml"))), setSubmitPreflight);
@@ -187,6 +195,7 @@ export function useVerifactu(m: Model) {
     submissions,
     submissionsAvailable,
     waitLeft,
+    waitUntil: waitUntil(submissions),
     canPreflight,
     canSubmit,
     exportXml,
