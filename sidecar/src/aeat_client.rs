@@ -134,7 +134,8 @@ mod tests {
         let key_pem = generated.signing_key.serialize_pem();
         let identity = Identity::from_pkcs8(cert_pem.as_bytes(), key_pem.as_bytes()).unwrap();
         let acceptor = TlsAcceptor::new(identity).unwrap();
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        // Misma resolución que el cliente: en Linux "localhost" puede ser ::1 primero.
+        let listener = TcpListener::bind("localhost:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let handle = std::thread::spawn(move || {
             let (tcp, _) = listener.accept().unwrap();
