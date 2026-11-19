@@ -174,6 +174,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        windows,
+        ignore = "schannel: Identity::from_pkcs8 solo importa RSA y rcgen genera ECDSA; corre en CI Linux"
+    )]
     fn sends_soap_over_tls_and_reads_chunked_response() {
         let (target, certificate, server) = tls_server(
             b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n<ok/>\r\n0\r\n\r\n",
@@ -194,6 +198,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        windows,
+        ignore = "schannel: Identity::from_pkcs8 solo importa RSA y rcgen genera ECDSA; corre en CI Linux"
+    )]
     fn keeps_body_of_http_500_faults() {
         let (target, certificate, server) =
             tls_server(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 8\r\n\r\n<Fault/>");
@@ -212,6 +220,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        windows,
+        ignore = "schannel: Identity::from_pkcs8 solo importa RSA y rcgen genera ECDSA; corre en CI Linux"
+    )]
     fn rejects_untrusted_server_certificate() {
         let (target, _certificate, _server) = tls_server(b"HTTP/1.1 200 OK\r\n\r\n");
         let connector = TlsConnector::new().unwrap();
