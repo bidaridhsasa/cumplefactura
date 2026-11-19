@@ -816,6 +816,7 @@ const ERRORS: Record<string, string> = {
   certificate_vault_dir_missing: "Falta la carpeta segura de certificados en este equipo.",
   aeat_wait_time_pending: "La AEAT pide esperar antes del siguiente envío. Podrás enviar a partir de las {d}.",
   xml_already_accepted_by_aeat: "La AEAT ya aceptó este XML. No hace falta reenviarlo.",
+  anulacion_not_pending: "Ese XML de anulación ya no es el pendiente. Envía la anulación actual de la factura.",
   aeat_calls_disabled: "El envío a la AEAT está desactivado en este equipo.",
   endpoint_name_not_allowed: "Ese entorno de envío no está permitido.",
   production_endpoint_disabled: "El envío a producción está bloqueado en esta versión.",

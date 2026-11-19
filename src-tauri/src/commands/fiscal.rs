@@ -450,6 +450,34 @@ pub fn verifactu_submit(
     })
 }
 
+/// Paquete de envío de una anulación pendiente (mismos campos que el de la interfaz).
+#[derive(Debug, Clone, Serialize)]
+pub struct PendingAnulacion {
+    pub invoice_id: String,
+    pub export_id: String,
+    pub xml_path: String,
+    pub xml_sha256: String,
+}
+
+/// XML de la anulación pendiente de una factura, listo para enviar o reintentar
+/// (también tras reiniciar la app). `None` si la factura no tiene anulación pendiente.
+#[tauri::command]
+pub fn verifactu_pending_anulacion(
+    state: State<'_, AppState>,
+    invoice_id: String,
+) -> Result<Option<PendingAnulacion>, String> {
+    require("invoice_id", &invoice_id)?;
+    let conn = state.lock()?;
+    Ok(db::pending_anulacion_export(&conn, &invoice_id)?.map(
+        |(export_id, xml_path, xml_sha256)| PendingAnulacion {
+            invoice_id,
+            export_id,
+            xml_path,
+            xml_sha256,
+        },
+    ))
+}
+
 /// Respuestas de la AEAT guardadas, de la más reciente a la más antigua.
 #[tauri::command]
 pub fn verifactu_submission_list(
@@ -479,6 +507,7 @@ fn checked_submission(
     if db::verifactu_xml_already_accepted(&conn, &input.xml_sha256)? {
         return Err("xml_already_accepted_by_aeat".to_string());
     }
+    db::check_anulacion_export_is_current(&conn, &input.export_id, &input.invoice_id)?;
     let settings = db::get_app_settings(&conn)?;
     if !settings.sends_certificate_password() {
         input.certificate_password = None;

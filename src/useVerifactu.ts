@@ -101,6 +101,22 @@ export function useVerifactu(m: Model) {
     setSubmission(pkg);
     setSubmitPreflight(null);
     setSubmitResult(null);
+    if (!pkg) void recoverPendingAnulacion(id);
+  }
+
+  /** S1: tras reiniciar, la anulación pendiente se recupera de la base (no se puede volver a exportar). */
+  async function recoverPendingAnulacion(invoiceId: string): Promise<SubmissionPackage | null> {
+    if (m.invoices.find((item) => item.id === invoiceId)?.status !== "VoidPending") return null;
+    try {
+      const pkg = await invoke<SubmissionPackage | null>("verifactu_pending_anulacion", { invoiceId });
+      if (pkg) {
+        setSubmission(pkg);
+        setExports((current) => [pkg, ...current.filter((item) => item.invoice_id !== invoiceId)]);
+      }
+      return pkg;
+    } catch {
+      return null;
+    }
   }
 
   /** El último XML exportado pasa a ser el que se envía; reinicia comprobación y envío. */
@@ -166,7 +182,11 @@ export function useVerifactu(m: Model) {
   const retry = action(
     null,
     async (row: Pick<VerifactuSubmissionSummary, "fiscal_export_id" | "invoice_id">) => {
-      const pkg = need(exportsThisSession.find((item) => item.export_id === row.fiscal_export_id), t("error.sinXml"));
+      const pkg = need(
+        exportsThisSession.find((item) => item.export_id === row.fiscal_export_id) ??
+          (await recoverPendingAnulacion(row.invoice_id).then((found) => (found?.export_id === row.fiscal_export_id ? found : null))),
+        t("error.sinXml"),
+      );
       setSelectedId(row.invoice_id);
       setSubmission(pkg);
       const check = await doPreflight(pkg);
@@ -203,7 +223,9 @@ export function useVerifactu(m: Model) {
     preflightSubmit,
     submitToAeat,
     retry,
-    canRetry: (row: VerifactuSubmissionSummary) => exportsThisSession.some((item) => item.export_id === row.fiscal_export_id),
+    canRetry: (row: VerifactuSubmissionSummary) =>
+      exportsThisSession.some((item) => item.export_id === row.fiscal_export_id) ||
+      m.invoices.some((item) => item.id === row.invoice_id && item.status === "VoidPending"),
     loadSubmissions,
   };
 }

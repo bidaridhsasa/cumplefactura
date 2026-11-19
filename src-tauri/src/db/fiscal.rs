@@ -438,6 +438,54 @@ pub fn record_verifactu_submission(
     Ok(id)
 }
 
+/// Exportación XML de la anulación pendiente de la factura (la última exportada), con
+/// la ruta de su XML. `None` si la factura no está en `VoidPending`. Permite reenviar
+/// tras reiniciar la app: la anulación no se puede volver a exportar mientras está pendiente.
+pub fn pending_anulacion_export(
+    conn: &Connection,
+    invoice_id: &str,
+) -> Result<Option<(String, String, String)>, String> {
+    conn.query_row(
+        "SELECT fe.id, fr.xml_path, fe.payload_hash
+         FROM invoices i
+         JOIN fiscal_exports fe ON fe.invoice_id = i.id AND fe.payload_version = ?2
+         JOIN fiscal_records fr ON fr.invoice_id = i.id AND fr.record_type = 'Anulacion'
+         WHERE i.id = ?1 AND i.status = ?3 AND fr.xml_path IS NOT NULL
+         ORDER BY fe.created_at DESC, fe.rowid DESC, fr.generated_at DESC, fr.rowid DESC
+         LIMIT 1",
+        params![invoice_id, ANULACION_PAYLOAD_VERSION, VOID_PENDING],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )
+    .optional()
+    .map_err(db_error)
+}
+
+/// Comprueba que una exportación de anulación es la de la anulación pendiente: un XML
+/// de anulación antiguo (ya rechazado o resuelto) no se puede reenviar, porque su
+/// respuesta se aplicaría a otra anulación. Las exportaciones de alta pasan sin más.
+pub fn check_anulacion_export_is_current(
+    conn: &Connection,
+    export_id: &str,
+    invoice_id: &str,
+) -> Result<(), String> {
+    let is_anulacion: bool = conn
+        .query_row(
+            "SELECT payload_version = ?2 FROM fiscal_exports WHERE id = ?1",
+            params![export_id, ANULACION_PAYLOAD_VERSION],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(db_error)?
+        .unwrap_or(false);
+    if !is_anulacion {
+        return Ok(());
+    }
+    match pending_anulacion_export(conn, invoice_id)? {
+        Some((current, _, _)) if current == export_id => Ok(()),
+        _ => Err("anulacion_not_pending".to_string()),
+    }
+}
+
 /// `true` si la última anulación de la factura fue rechazada por la AEAT: la nueva
 /// debe llevar `RechazoPrevio=S`.
 pub fn latest_anulacion_rejected(conn: &Connection, invoice_id: &str) -> Result<bool, String> {

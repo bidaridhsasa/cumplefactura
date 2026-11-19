@@ -1184,8 +1184,23 @@ fn rejected_anulacion_stays_in_chain_and_invoice_returns_to_issued() {
     );
 
     // Reintento: nueva anulación pendiente; al aceptarse, la factura queda anulada.
+    assert_eq!(
+        check_anulacion_export_is_current(&conn, &export_id, &invoice_id).unwrap_err(),
+        "anulacion_not_pending"
+    );
+    assert_eq!(pending_anulacion_export(&conn, &invoice_id).unwrap(), None);
     let retry = pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:10:00Z");
     assert!(!latest_anulacion_rejected(&conn, &invoice_id).unwrap());
+    // Solo la anulación pendiente se puede enviar; el XML rechazado, no.
+    check_anulacion_export_is_current(&conn, &retry, &invoice_id).unwrap();
+    assert!(check_anulacion_export_is_current(&conn, &export_id, &invoice_id).is_err());
+    assert_eq!(
+        pending_anulacion_export(&conn, &invoice_id)
+            .unwrap()
+            .unwrap()
+            .0,
+        retry
+    );
     submit_anulacion(&mut conn, &invoice_id, &retry, "accepted");
     assert_eq!(
         invoice_and_anulacion_status(&conn, &invoice_id),
