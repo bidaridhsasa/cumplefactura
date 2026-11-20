@@ -8,7 +8,8 @@
 //! Qué entra: facturas emitidas (`Issued`) y rectificadas (`Rectified`) de la empresa cuya fecha
 //! de expedición cae en el rango. Fuera: borradores (no son facturas) y anuladas (`Void`): el
 //! registro de anulación de VERI*FACTU deja la factura sin efecto, así que no se lleva al libro.
-//! Las rectificativas salen con el signo guardado (negativo si reducen la base).
+//! Las rectificativas por diferencias (I) salen con el signo guardado (negativo si reducen la
+//! base); las de sustitución (S) restan la original con filas negativas y suman la nueva.
 
 use crate::services::export;
 use crate::services::verifactu::{
@@ -40,7 +41,7 @@ pub fn libro_expedidas_csv(
     let mut invoices = conn
         .prepare(
             "SELECT i.id, i.series, i.number, i.kind, i.issued_at, i.rectification_reason_code,
-                    i.rectification_method, cu.display_name, cu.tax_id, r.series, r.number, r.issued_at
+                    i.rectification_method, cu.display_name, cu.tax_id, r.series, r.number, r.issued_at, r.id
              FROM invoices i
              JOIN customers cu ON cu.id = i.customer_id
              LEFT JOIN invoices r ON r.id = i.rectifies_invoice_id
@@ -78,6 +79,7 @@ pub fn libro_expedidas_csv(
                     }
                     _ => None,
                 },
+                rectified_id: row.get(12)?,
             })
         })
         .map_err(db_error)?
@@ -96,19 +98,28 @@ pub fn libro_expedidas_csv(
             ),
             None => (String::new(), String::new()),
         };
-        let lines = groups
-            .query_map(params![invoice.id], |row| {
-                Ok([
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                ])
-            })
-            .map_err(db_error)?
-            .collect::<Result<Vec<[i64; 5]>, _>>()
-            .map_err(db_error)?;
+        let mut group_rows = |id: &str, sign: i64| {
+            groups
+                .query_map(params![id], |row| {
+                    Ok([
+                        row.get(0)?,
+                        row.get(1)?,
+                        sign * row.get::<_, i64>(2)?,
+                        sign * row.get::<_, i64>(3)?,
+                        sign * row.get::<_, i64>(4)?,
+                    ])
+                })
+                .map_err(db_error)?
+                .collect::<Result<Vec<[i64; 5]>, _>>()
+                .map_err(db_error)
+        };
+        // Sustitución (S): la rectificativa lleva los importes nuevos completos y la original sigue
+        // en el libro; se resta la original (filas negativas) para que el libro sume lo correcto.
+        let mut lines = match (invoice.method.as_deref(), &invoice.rectified_id) {
+            (Some("S"), Some(original)) => group_rows(original, -1)?,
+            _ => Vec::new(),
+        };
+        lines.extend(group_rows(&invoice.id, 1)?);
         for [iva_bp, irpf_bp, base, cuota, retencion] in lines {
             // Recargo de equivalencia: aún no se emite (N3); columnas vacías hasta entonces.
             // Fecha de operación vacía: hoy coincide siempre con la de expedición (art. 63.3).
@@ -153,6 +164,7 @@ struct Header {
     customer_name: String,
     customer_tax_id: String,
     rectified: Option<(String, i64, String)>,
+    rectified_id: Option<String>,
 }
 
 /// Céntimos o puntos básicos → `1234,56` (coma decimal, sin miles: lo leen Excel y ContaPro).
@@ -227,6 +239,31 @@ mod tests {
         );
         assert_eq!(csv, expected);
         assert_eq!((resumen.facturas, resumen.filas), (4, 5));
+    }
+
+    #[test]
+    fn substitution_rectificativa_subtracts_the_original() {
+        let conn = test_conn();
+        seed(&conn);
+        conn.execute_batch(
+            "INSERT INTO invoices (id, company_id, customer_id, fiscal_year, series, number, kind, status,
+                                   rectifies_invoice_id, rectification_reason_code, rectification_method,
+                                   taxable_base_cents, tax_cents, withholding_cents, total_cents, created_at, issued_at)
+             VALUES ('s1', 'co', 'cu', 2026, 'R', 2, 'Rectifying', 'Issued', 'f4', 'R1', 'S', 40000, 8400, 6000, 42400, 'x', '2026-08-01T10:00:00+02:00');
+             INSERT INTO invoice_lines (id, invoice_id, position, description, quantity, unit_price_cents,
+                                        taxable_base_cents, tax_rate_basis_points, tax_cents,
+                                        withholding_rate_basis_points, withholding_cents)
+             VALUES ('ls1', 's1', 1, 'Honorarios', 1, 40000, 40000, 2100, 8400, 1500, 6000);",
+        )
+        .expect("seed S");
+        let (csv, resumen) =
+            libro_expedidas_csv(&conn, "co", "2026-08-01", "2026-08-31").expect("libro");
+        let rows: Vec<&str> = csv.lines().skip(1).collect();
+        assert_eq!(resumen.filas, 2);
+        assert!(
+            rows[0].contains(";-500,00;21,00;-105,00;;;15,00;-75,00;-530,00;S;\"A-3\";2026-06-30;")
+        );
+        assert!(rows[1].contains(";400,00;21,00;84,00;;;15,00;60,00;424,00;S;\"A-3\";2026-06-30;"));
     }
 
     #[test]
