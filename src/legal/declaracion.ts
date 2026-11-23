@@ -22,7 +22,11 @@ const body = extractBody(doc);
 /** Valor de la letra `x)` de la declaración, sin marcas de Markdown ni la aclaración entre paréntesis. */
 function field(letter: string): string | null {
   const match = (body ?? "").match(new RegExp(`^${letter}\\) \\*\\*[^*]+?:?\\*\\*:? (.+)$`, "m"));
-  return match ? plain(match[1]).split(" (")[0].replace(/\.$/, "") : null;
+  if (!match) return null;
+  const value = plain(match[1]);
+  // Quita la aclaración «valor (nota). Resto…» y el punto final de frase, pero no el de «S.L.».
+  const short = value.match(/^(.*?) \([^)]*\)(?:[.;].*)?$/)?.[1] ?? value;
+  return short.replace(/([^\s.]{2,})\.$/, "$1");
 }
 
 /** Quita negritas, cursivas, código y escapes de Markdown. */
@@ -38,5 +42,5 @@ export const declaracion = {
   productor: field("h"),
   nif: field("i"),
   /** No definitivo: borrador, datos PENDIENTE o formato no reconocido. */
-  provisional: body === null || /BORRADOR|PENDIENTE/.test(doc),
+  provisional: body === null || /BORRADOR/.test(doc.split("\n")[0]) || /PENDIENTE/.test(body),
 };
