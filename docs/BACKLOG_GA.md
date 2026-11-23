@@ -15,16 +15,37 @@ Tamaños: S ≤ medio día · M 1–2 días · L 3–5 días.
 ## Acciones de Ricardo (camino crítico)
 
 - [ ] **H1** Visto bueno de Bilel y Dabiz al PR #8 (protocolo 0.2 de `design.md`). Para el 24/11. Bloquea que nada llegue a `main`.
-- [ ] **H2** Rellenar `docs/legal/FABRICANTE.md` en esta rama (razón social y NIF del fabricante del SIF, nombre e identificador de la app). Para el 23/11. Bloquea N2, P2 y L2.
+- [x] **H2** Rellenar `docs/legal/FABRICANTE.md` en esta rama (razón social y NIF del fabricante del SIF, nombre e identificador de la app). Para el 23/11. Bloquea N2, P2 y L2.
 - [ ] **H3** Certificado de pruebas en el vault y `node tools/homolog-verifactu.mjs --enviar`. Para el 27/11, tras N2.
 - [ ] **H4** Pedir certificado de firma de código (tarda días). Sin él, el instalador muestra aviso de SmartScreen.
 - [ ] **H5** Firmar la declaración responsable (borrador en L1). Para el 21/12.
 - [ ] **H6** Precio y forma de venta. Para el 14/12.
 - [ ] **H7** Cerrar PR #1, #2, #3, #5 y #6 y archivar las ramas superadas. Sin fecha.
 
+## Decisiones de Ricardo (24/11/2026, sobre las preguntas de los PR #11, #12, #14 y #15)
+
+| # | Decisión | Lo aplica |
+|---|---|---|
+| 11.1 | Si la hora de generación retrocede, solo se bloquea la emisión; sin registro de evento. | ya en N1 |
+| 11.2 | No se puede cambiar el separador ni el relleno de una serie con facturas emitidas; para otro formato, serie nueva. | N1b |
+| 11.3 | Las series sin configuración siguen con el formato `A-7`. | ya en N1 |
+| 12.1 | Si la AEAT rechaza una anulación, la factura queda en un estado visible «Anulación rechazada» (no vuelve en silencio a «Emitida»). | S1b |
+| 12.2 | Si el rechazo es porque el alta no consta en la AEAT, la app propone reenviar con `SinRegistroPrevio=S` y el usuario confirma. | S1b |
+| 12.3 | En el PR basta citar el Diseño de registro; el apartado del RD 1007/2023 va a la matriz regulatoria. | — |
+| 14.1 | Se crea S4: remisión automática e inmediata con reintentos (RD 1007/2023, art. 16.1, comprobado en el BOE consolidado el 24/11). | S4 |
+| 14.2 | Se crea D9: QR conforme a la especificación de la AEAT. | D9 |
+| 14.3 | La v1 es «solo VERI\*FACTU»: `TipoUsoPosibleSoloVerifactu=S`. | N1b (comprueba N2) |
+| 14.4 | `FechaOperacion` se sigue omitiendo en la v1. | — |
+| 14.5 | PDF legales descargados en `C: LEGISLACION\legislacion_icac_revision\AEAT\` (245 ficheros LFS). | hecho |
+| 15.1 | Libro de expedidas: opción al exportar para incluir las anuladas marcadas o excluirlas (por defecto, excluidas). | X1b |
+| 15.2 | Rectificativa por sustitución: filas negativas que restan la original. | ya en X1 |
+| 15.3 | Importar el libro completo en ContaPro: anotado en su backlog, sin programar. | ContaPro |
+
 ## Carril N — Núcleo de la factura
 
 - [ ] **N1** (M) `cf/n1-numeracion` ← adoring-brown. Número reservado dentro de la transacción del alta; hora del registro desde el reloj del sistema; un único formato de número para vista previa, XML y PDF. Lote 1 (19/11).
+- [ ] **N1b** (S) commits en `cf/n1-numeracion` y merge en `cf/n2-xml-campos`. Decisiones 11.2 y 14.3. Noche del 24/11.
+- [ ] **D9** (S) `cf/d9-qr` ← adoring-brown. QR del PDF según la especificación de la AEAT. Noche del 24/11.
 - [ ] **N2** (M) `cf/n2-xml-campos` ← N1. `SistemaInformatico` con datos del fabricante; `TipoUsoPosibleSoloVerifactu` según norma; F2 sin `Destinatarios`; `IDOtro` para extranjeros; dígito de control de NIF/NIE/CIF. Lote 2 (23/11).
 - [ ] **N3** (L) `cf/n3-desglose` ← N2. Calificación por línea (sujeta, inversión del sujeto pasivo, exenta con causa, no sujeta, recargo de equivalencia); tipos vigentes por fecha; redondeo según norma; lo no soportado no se puede emitir. Lote 3 (25/11).
 - [ ] **N4** (M) `cf/n4-instantanea` ← N3. Datos de emisor y cliente congelados en la factura al emitir; XML de alta archivado en la app. Lote 4 (27/11).
@@ -32,8 +53,10 @@ Tamaños: S ≤ medio día · M 1–2 días · L 3–5 días.
 ## Carril S — Envío y trazabilidad
 
 - [ ] **S1** (M) `cf/s1-estado-envio` ← adoring-brown. Errores de transporte guardados («sin confirmar»), `soap_fault` y todos los códigos; `TiempoEsperaEnvio`; la anulación no se aplica hasta la aceptación; filtros de CSV y auditoría. Lote 1.
+- [ ] **S1b** (M) commits en `cf/s1-estado-envio` y merge en `cf/s2-auditoria`. Decisiones 12.1 y 12.2. Noche del 24/11.
 - [ ] **S2** (M) `cf/s2-auditoria` ← S1. Auditoría de todos los cambios de datos maestros, ajustes, exportaciones y envíos; verificación de la cadena de `audit_events`. Lote 2.
 - [ ] **S3** (S) `cf/s3-produccion` ← S2. Envío real activable desde Ajustes; producción solo con confirmación explícita. **No fusionar antes de homologar.** Lote 3.
+- [ ] **S4** (L) `cf/s4-remision` ← S3. Cola de remisión automática: cada registro se envía al generarse, los pendientes se reintentan al menos cada hora y al abrir la app, respetando `TiempoEsperaEnvio`. Noche del 27/11.
 
 ## Carril P — Publicación
 
@@ -49,12 +72,13 @@ Tamaños: S ≤ medio día · M 1–2 días · L 3–5 días.
 ## Carril X — Puente contable
 
 - [ ] **X1** (M) `cf/x1-libro-expedidas` ← adoring-brown. CSV «Libro registro de facturas expedidas» por periodo, legible por el importador de ContaPro. Lote 1.
+- [ ] **X1b** (S) commits en `cf/x1-libro-expedidas`. Decisión 15.1. Noche del 24/11.
 
 ## Hitos
 
 | Fecha | Hito |
 |---|---|
-| 19–27/11 | Lotes nocturnos 1–4 |
+| 19–27/11 | Lotes nocturnos 1–4, más ajustes N1b, S1b, X1b y D9 (24/11) y S4 (27/11) |
 | 24/11 | H1: PR #8 aprobado y fusionado |
 | 30/11–11/12 | Bucle de homologación; cada rechazo de la AEAT es una tarea nueva (subsanación incluida) |
 | 14/12 | Congelar código fiscal; gate completo en Windows sobre `main` |
