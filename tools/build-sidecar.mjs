@@ -21,7 +21,7 @@ run("cargo", ["build", "-p", "cumplefactura-sidecar", ...(debug ? [] : ["--relea
 
 const exe = process.platform === "win32" ? ".exe" : "";
 // CARGO_TARGET_DIR: el mismo target/ que usa cargo si se ha movido fuera del repo.
-const source = resolve(process.env.CARGO_TARGET_DIR || resolve(root, "target"), debug ? "debug" : "release", `cumplefactura-sidecar${exe}`);
+const source = resolve(root, process.env.CARGO_TARGET_DIR || "target", debug ? "debug" : "release", `cumplefactura-sidecar${exe}`);
 const targetDir = resolve(root, "src-tauri", "binaries");
 const target = resolve(targetDir, `cumplefactura-sidecar-${triple}${exe}`);
 mkdirSync(targetDir, { recursive: true });

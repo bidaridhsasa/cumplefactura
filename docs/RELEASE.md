@@ -50,8 +50,8 @@ Al subir la versión, actualiza también `<sf:Version>` en `src-tauri/src/servic
      npx tauri build --config src-tauri/tauri.bundle.conf.json --config "{\"bundle\":{\"windows\":{\"certificateThumbprint\":\"$env:CF_SIGN_THUMBPRINT\",\"digestAlgorithm\":\"sha256\",\"timestampUrl\":\"http://timestamp.digicert.com\"}}}"
      ```
 
-     Tauri firma el ejecutable, el sidecar y el instalador con `signtool` (Windows SDK).
-   - Comprueba: `Get-AuthenticodeSignature .\CumpleFactura_<versión>_x64-setup.exe` debe decir `Valid`.
+     Tauri firma con `signtool` (Windows SDK) el ejecutable y el instalador.
+   - Comprueba con `Get-AuthenticodeSignature` que dan `Valid` el instalador y, tras instalar, `cumplefactura.exe` y el sidecar `cumplefactura-sidecar.exe`. Si el sidecar no sale firmado, fírmalo antes de empaquetar con `signtool sign /sha1 $env:CF_SIGN_THUMBPRINT /fd sha256 /tr http://timestamp.digicert.com /td sha256 src-tauri\binaries\cumplefactura-sidecar-*.exe` justo después de `node tools/build-sidecar.mjs`.
    - Al acabar, borra el certificado del almacén y la variable (`Remove-Item Env:CF_SIGN_THUMBPRINT`).
    - Sin certificado, Windows SmartScreen avisa al instalar (H4 del backlog).
 7. **Sumas SHA-256**:
@@ -73,7 +73,7 @@ Al subir la versión, actualiza también `<sf:Version>` en `src-tauri/src/servic
 
 ## Datos del usuario
 
-- La base de datos, los certificados (`certs\`), los logos y las exportaciones por defecto viven en `%APPDATA%\es.saizaragon.cumplefactura\`. Las copias de seguridad van donde elige el usuario.
+- La base de datos, los certificados (`certs\`), los logos viven en `%APPDATA%\es.saizaragon.cumplefactura\`. Las exportaciones van por defecto a `Documentos\CumpleFactura` (o a `exports\` en la carpeta de datos si no hay carpeta de documentos). Las copias de seguridad van donde elige el usuario.
 - **Desinstalar no borra los datos**: el desinstalador NSIS de Tauri solo los borra si se marca expresamente la casilla «borrar datos de la aplicación», que sale desmarcada. En las actualizaciones no se ofrece.
 
 ### Migración desde versiones con el identificador antiguo
@@ -95,4 +95,4 @@ Máquina o VM sin herramientas de desarrollo. Anota versión, fecha y resultado 
 - [ ] **Emitir**: alta de empresa y cliente, emitir una factura, ver el PDF y el XML; la cadena de huellas verifica.
 - [ ] **Enviar a la AEAT de pruebas**: con un certificado de pruebas, enviar la factura al entorno de pruebas y ver la respuesta (aceptada o el error concreto). Nunca producción en esta lista.
 - [ ] **Copia y restauración**: exportar copia de seguridad, emitir otra factura, restaurar la copia y comprobar que vuelve al estado anterior.
-- [ ] **Desinstalar conservando datos**: desinstalar desde Configuración › Aplicaciones sin marcar la casilla de borrar datos; comprobar que `%APPDATA%\es.saizaragon.cumplefactura` y las copias siguen ahí; reinstalar y ver las facturas.
+- [ ] **Desinstalar conservando datos**: desinstalar desde Configuración › Aplicaciones sin marcar la casilla de borrar datos; comprobar que `%APPDATA%\es.saizaragon.cumplefactura`, `Documentos\CumpleFactura` y las copias siguen ahí; reinstalar y ver las facturas.
