@@ -513,6 +513,18 @@ export const es = {
   "ajustes.copiasAyuda": "Copias de seguridad de tus datos y cómo restaurarlas.",
   "ajustes.avanzado": "Avanzado",
   "ajustes.avanzadoAyuda": "Exportaciones de datos y detalles de la instalación.",
+  "ajustes.acerca": "Acerca de",
+  "ajustes.acercaAyuda": "Versión, fabricante y declaración responsable de este sistema de facturación.",
+
+  "acerca.borrador": "Declaración no definitiva.",
+  "acerca.borradorAyuda": "Es un borrador sin firmar y le faltan datos (marcados como PENDIENTE). No sirve todavía como declaración responsable del sistema.",
+  "acerca.sistema": "Sistema informático de facturación",
+  "acerca.nombre": "Nombre",
+  "acerca.version": "Versión declarada",
+  "acerca.fabricante": "Fabricante",
+  "acerca.nif": "NIF del fabricante",
+  "acerca.sinDato": "Sin dato",
+  "acerca.declaracion": "Declaración responsable",
 
   "empresa.nueva": "Nueva empresa",
   "empresa.guardar": "Guardar empresa",
