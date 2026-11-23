@@ -89,6 +89,48 @@ pub fn insert_anulacion_record(
     tx.commit().map_err(db_error)
 }
 
+/// Evento de auditoría de un cambio o exportación; se guarda el hash de `value` serializado.
+pub fn audit_change(
+    conn: &Connection,
+    entity_type: &str,
+    entity_id: &str,
+    action: &str,
+    value: &impl Serialize,
+) -> Result<(), String> {
+    let payload = serde_json::to_string(value).map_err(|err| format!("audit_payload: {err}"))?;
+    operational_audit(conn, entity_type, entity_id, action, &payload)
+}
+
+/// Eventos de auditoría en orden de cadena (el de `latest_audit_hash`) con su hash guardado.
+pub fn list_audit_events_for_verification(
+    conn: &Connection,
+) -> Result<Vec<(AuditEvent, String)>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, entity_type, entity_id, action, actor, occurred_at, payload_hash, previous_hash, hash
+             FROM audit_events ORDER BY occurred_at ASC, rowid ASC",
+        )
+        .map_err(db_error)?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                AuditEvent {
+                    id: row.get(0)?,
+                    entity_type: row.get(1)?,
+                    entity_id: row.get(2)?,
+                    action: row.get(3)?,
+                    actor: row.get(4)?,
+                    occurred_at: row.get(5)?,
+                    payload_hash: row.get(6)?,
+                    previous_hash: row.get(7)?,
+                },
+                row.get(8)?,
+            ))
+        })
+        .map_err(db_error)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(db_error)
+}
+
 pub fn latest_audit_hash(conn: &Connection) -> Result<Option<String>, String> {
     conn.query_row(
         "SELECT hash FROM audit_events ORDER BY occurred_at DESC, rowid DESC LIMIT 1",
@@ -389,6 +431,22 @@ pub fn record_verifactu_submission(
 ) -> Result<String, String> {
     let tx = conn.transaction().map_err(db_error)?;
     let id = insert_verifactu_submission(&tx, record)?;
+    // Cada envío que llega a salir hacia la AEAT queda en la auditoría con su resultado.
+    let response = record.response;
+    audit_change(
+        &tx,
+        "invoice",
+        record.invoice_id,
+        "verifactu_submitted",
+        &serde_json::json!({
+            "submission_id": id,
+            "fiscal_export_id": record.fiscal_export_id,
+            "endpoint_name": response.endpoint_name,
+            "status": response.status,
+            "csv": response.csv,
+            "codigo_error": response.codigo_error,
+        }),
+    )?;
     let is_anulacion = tx
         .query_row(
             "SELECT payload_version = ?2 FROM fiscal_exports WHERE id = ?1",

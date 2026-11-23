@@ -10,7 +10,7 @@ use crate::db::{
     PreviousInvoiceLink, VerifactuSubmissionSummary,
 };
 use crate::domain::require;
-use crate::services::audit::AuditEvent;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::export;
 use crate::services::fiscal_chain::{self, FiscalChainVerification};
 use crate::services::rectification_advisor::{self, RectificationAdvice, RectificationAdviceInput};
@@ -90,6 +90,8 @@ pub fn backup_export(
 
     let conn = state.lock()?;
     db::backup_database(&conn, &target_path)?;
+    let payload = serde_json::json!({ "target_path": target_path });
+    db::audit_change(&conn, "backup", &target_path, "backup_exported", &payload)?;
 
     Ok(BackupResult {
         target_path,
@@ -123,6 +125,18 @@ pub fn backup_restore(
     }
     let mut conn = state.lock()?;
     let outcome = db::restore_database(&mut conn, Path::new(&source_path))?;
+    // Restauración de copia (TipoEvento 07 de EventosSIF), en la base que queda activa.
+    let action = if outcome.status == "restored" {
+        "backup_restored"
+    } else {
+        "backup_restore_rolled_back"
+    };
+    let payload = serde_json::json!({
+        "source_path": source_path,
+        "safety_backup_path": outcome.safety_backup_path,
+        "chain_ok": outcome.chain_ok,
+    });
+    db::audit_change(&conn, "backup", &source_path, action, &payload)?;
     Ok(BackupRestoreResult {
         source_path,
         status: outcome.status.to_string(),
@@ -144,6 +158,8 @@ pub fn invoice_export_json(
     let conn = state.lock()?;
     let invoice = db::invoice_pdf_data(&conn, &invoice_id)?;
     export::write_invoice_json(&target_path, &invoice)?;
+    let payload = serde_json::json!({ "target_path": target_path });
+    db::audit_change(&conn, "invoice", &invoice_id, "json_exported", &payload)?;
     Ok(ExportResult {
         target_path,
         status: "created".to_string(),
@@ -163,6 +179,8 @@ pub fn invoice_export_csv(
     let filtered = filters.is_some();
     let invoices = db::list_invoices_filtered(&conn, filters.unwrap_or_default())?;
     export::write_invoice_csv(&target_path, &invoices)?;
+    let payload = serde_json::json!({ "target_path": target_path, "invoices": invoices.len() });
+    db::audit_change(&conn, "export", &target_path, "csv_exported", &payload)?;
     Ok(ExportResult {
         target_path,
         status: "created".to_string(),
@@ -194,6 +212,14 @@ pub fn fiscal_audit_export(
         audit_events,
         fiscal_records,
         fiscal_chain::verify(&conn)?,
+    )?;
+    let payload = serde_json::json!({ "target_path": target_path, "filtered": filtered });
+    db::audit_change(
+        &conn,
+        "export",
+        &target_path,
+        "fiscal_audit_exported",
+        &payload,
     )?;
     Ok(ExportResult {
         target_path,
@@ -261,6 +287,7 @@ pub fn verifactu_xml_draft_export(
         &target_path,
         verifactu_submit::PAYLOAD_VERSION,
     )?;
+    db::audit_change(&conn, "invoice", &invoice_id, "xml_exported", &export)?;
 
     Ok(VerifactuXmlResult {
         target_path,
@@ -327,7 +354,7 @@ pub fn verifactu_xml_anulacion_draft_export(
     let previous_audit_hash = db::latest_audit_hash(&conn)?;
     let audit_event = AuditEvent::invoice_voided(
         invoice.id.clone(),
-        "local-user".to_string(),
+        audit::system_actor(),
         cancellation_hash.clone(),
         previous_audit_hash,
     );
@@ -350,6 +377,7 @@ pub fn verifactu_xml_anulacion_draft_export(
         &target_path,
         db::ANULACION_PAYLOAD_VERSION,
     )?;
+    db::audit_change(&conn, "invoice", &invoice_id, "xml_exported", &export)?;
 
     let mut notes = vec![
         "XML anulacion generated, XSD-validated and recorded in fiscal chain; invoice is VoidPending until the AEAT accepts it."

@@ -14,6 +14,7 @@ pub fn company_create(state: State<'_, AppState>, input: CompanyInput) -> Result
     let company = Company::from_input(input);
     let conn = state.lock()?;
     db::insert_company(&conn, &company)?;
+    db::audit_change(&conn, "company", &company.id, "company_created", &company)?;
     Ok(company)
 }
 
@@ -24,7 +25,9 @@ pub fn company_update(
     input: CompanyUpdateInput,
 ) -> Result<Company, String> {
     let conn = state.lock()?;
-    db::update_company(&conn, &input)
+    let company = db::update_company(&conn, &input)?;
+    db::audit_change(&conn, "company", &company.id, "company_updated", &company)?;
+    Ok(company)
 }
 
 /// Listado resumen de empresas.
@@ -41,7 +44,9 @@ pub fn company_series_configure(
     input: InvoiceSeriesConfigInput,
 ) -> Result<InvoiceSeriesConfig, String> {
     let mut conn = state.lock()?;
-    db::upsert_invoice_series_config(&mut conn, input)
+    let series = db::upsert_invoice_series_config(&mut conn, input)?;
+    db::audit_change(&conn, "invoice_series", &series.id, "series_saved", &series)?;
+    Ok(series)
 }
 
 /// Series activas/configuradas de una empresa y año fiscal.
@@ -72,17 +77,32 @@ pub fn company_logo_set(
         .map_err(|err| format!("app data dir error: {err}"))?
         .join("logos");
     let mut conn = state.lock()?;
-    db::set_company_logo(
+    let logo_path = db::set_company_logo(
         &mut conn,
         &company_id,
         std::path::Path::new(&source_path),
         &logos_dir,
-    )
+    )?;
+    db::audit_change(
+        &conn,
+        "company",
+        &company_id,
+        "company_logo_set",
+        &logo_path,
+    )?;
+    Ok(logo_path)
 }
 
 #[tauri::command]
 pub fn company_logo_clear(state: State<'_, AppState>, company_id: String) -> Result<(), String> {
     require("company_id", &company_id)?;
     let mut conn = state.lock()?;
-    db::clear_company_logo(&mut conn, &company_id)
+    db::clear_company_logo(&mut conn, &company_id)?;
+    db::audit_change(
+        &conn,
+        "company",
+        &company_id,
+        "company_logo_cleared",
+        &company_id,
+    )
 }

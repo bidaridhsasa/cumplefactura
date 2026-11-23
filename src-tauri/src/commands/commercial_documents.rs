@@ -110,6 +110,13 @@ pub fn commercial_document_pdf(
     let data = db::commercial_document_pdf_data(&conn, &id)?;
     let sha256 = pdf::write_commercial_document_pdf(&target_path, &data)
         .map_err(|err| format!("io_error:{err}"))?;
+    db::audit_change(
+        &conn,
+        "commercial_document",
+        &id,
+        "pdf_exported",
+        &serde_json::json!({ "target_path": target_path, "sha256": sha256 }),
+    )?;
     Ok(CommercialDocumentPdf {
         target_path,
         sha256,
@@ -134,5 +141,8 @@ pub fn commercial_series_configure(
     input: CommercialSeriesConfigInput,
 ) -> Result<CommercialSeriesConfig, String> {
     let mut conn = state.lock()?;
-    db::configure_commercial_series(&mut conn, input)
+    let series = db::configure_commercial_series(&mut conn, input)?;
+    let id = format!("{}:{}", series.company_id, series.kind);
+    db::audit_change(&conn, "commercial_series", &id, "series_saved", &series)?;
+    Ok(series)
 }

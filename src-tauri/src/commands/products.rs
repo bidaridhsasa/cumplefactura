@@ -9,9 +9,15 @@ use tauri::State;
 #[tauri::command]
 pub fn product_upsert(state: State<'_, AppState>, input: ProductInput) -> Result<Product, String> {
     input.validate()?;
+    let action = if input.id.is_some() {
+        "product_updated"
+    } else {
+        "product_created"
+    };
     let product = Product::from_input(input);
     let conn = state.lock()?;
     db::upsert_product(&conn, &product)?;
+    db::audit_change(&conn, "product", &product.id, action, &product)?;
     Ok(product)
 }
 
