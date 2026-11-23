@@ -6,10 +6,10 @@ Son datos de empresa (públicos), no secretos. No poner aquí certificados, cont
 
 | Campo | Valor | Dónde se usa |
 |---|---|---|
-| Razón social del fabricante | PENDIENTE | XML `SistemaInformatico/NombreRazon`, declaración responsable |
-| NIF del fabricante | PENDIENTE | XML `SistemaInformatico/NIF`, declaración responsable |
-| Nombre del sistema informático | PENDIENTE (hoy «CumpleFactura»; el nombre comercial está sin decidir) | XML `NombreSistemaInformatico`, instalador |
-| Id del sistema informático (2 caracteres) | PENDIENTE (hoy «CF») | XML `IdSistemaInformatico` |
+| Razón social del fabricante | VENDINGSAIZARAGON, S.L. | XML `SistemaInformatico/NombreRazon`, declaración responsable |
+| NIF del fabricante | B98945173 | XML `SistemaInformatico/NIF`, declaración responsable |
+| Nombre del sistema informático | CumpleFactura (provisional: el nombre comercial se decidirá más adelante) | XML `NombreSistemaInformatico`, instalador |
+| Id del sistema informático (2 caracteres) | CF (provisional: Ricardo propuso «VSA26CF», pero el XSD solo admite 2 caracteres, `TextMax2Type`; falta elegir 2) | XML `IdSistemaInformatico` |
 | Versión | 1.0.0 | XML `Version`, instalador |
-| Identificador de la app (Tauri) | PENDIENTE (hoy `com.local.cumplefactura`) | instalador, carpeta de datos |
-| Dirección postal del fabricante | PENDIENTE | declaración responsable |
+| Identificador de la app (Tauri) | `es.saizaragon.cumplefactura` | instalador, carpeta de datos |
+| Dirección postal del fabricante | Calle Naranjo 38, 46117 Bétera, Valencia, España | declaración responsable |
