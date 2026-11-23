@@ -124,7 +124,7 @@ pub fn backup_restore(
         });
     }
     let mut conn = state.lock()?;
-    let outcome = db::restore_database(&mut conn, Path::new(&source_path))?;
+    let mut outcome = db::restore_database(&mut conn, Path::new(&source_path))?;
     // Restauración de copia (TipoEvento 07 de EventosSIF), en la base que queda activa.
     let action = if outcome.status == "restored" {
         "backup_restored"
@@ -136,7 +136,12 @@ pub fn backup_restore(
         "safety_backup_path": outcome.safety_backup_path,
         "chain_ok": outcome.chain_ok,
     });
-    db::audit_change(&conn, "backup", &source_path, action, &payload)?;
+    // La base ya está sustituida: un fallo al auditar no debe presentarse como restauración fallida.
+    if let Err(err) = db::audit_change(&conn, "backup", &source_path, action, &payload) {
+        outcome
+            .notes
+            .push(format!("audit_event_not_recorded: {err}"));
+    }
     Ok(BackupRestoreResult {
         source_path,
         status: outcome.status.to_string(),
