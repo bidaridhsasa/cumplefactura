@@ -2,6 +2,7 @@
 //!
 //! Recorre SQLite en orden, comprueba forma del registro, enlace con el hash previo,
 //! unicidad y recomputa el hash VERI*FACTU (`verifactu::*`) para detectar manipulación.
+//! También verifica la cadena de `audit_events` (eslabón previo y hash recalculado).
 //! Evidencia local: no es homologación ni aceptación AEAT.
 
 use crate::db::{self, FiscalRecordVerificationRow};
@@ -17,6 +18,8 @@ use std::path::Path;
 pub struct FiscalChainVerification {
     pub valid: bool,
     pub total_records: usize,
+    /// Eventos de auditoría recorridos; sus incidencias usan códigos `AUDIT_*`.
+    pub audit_total_events: usize,
     pub issue_count: usize,
     pub last_hash_by_company: Vec<FiscalCompanyChainHead>,
     pub issues: Vec<FiscalChainIssue>,
@@ -29,7 +32,8 @@ pub struct FiscalCompanyChainHead {
     pub last_hash: String,
 }
 
-/// Incidencia detectada en un registro (severityidad + código estable).
+/// Incidencia detectada en un registro (severidad + código estable).
+/// En incidencias `AUDIT_*`, `record_id` es el evento e `invoice_id` su `entity_id`.
 #[derive(Debug, Clone, Serialize)]
 pub struct FiscalChainIssue {
     pub record_id: String,
@@ -54,6 +58,8 @@ pub fn verify(conn: &Connection) -> Result<FiscalChainVerification, String> {
         previous_by_company.insert(record.company_id.clone(), record.fiscal_hash.clone());
     }
 
+    let audit_total_events = verify_audit_chain(conn, &mut issues)?;
+
     let mut last_hash_by_company = previous_by_company
         .into_iter()
         .map(|(company_id, last_hash)| FiscalCompanyChainHead {
@@ -66,10 +72,46 @@ pub fn verify(conn: &Connection) -> Result<FiscalChainVerification, String> {
     Ok(FiscalChainVerification {
         valid: issues.is_empty(),
         total_records: records.len(),
+        audit_total_events,
         issue_count: issues.len(),
         last_hash_by_company,
         issues,
     })
+}
+
+/// Recorre `audit_events` en orden: cada evento enlaza con el hash del anterior y su hash
+/// guardado coincide con el recalculado. Devuelve el número de eventos.
+fn verify_audit_chain(
+    conn: &Connection,
+    issues: &mut Vec<FiscalChainIssue>,
+) -> Result<usize, String> {
+    let events = db::list_audit_events_for_verification(conn)?;
+    let mut previous: Option<&str> = None;
+    for (event, stored_hash) in &events {
+        let mut issue = |code: &str, message: &str| {
+            issues.push(FiscalChainIssue {
+                record_id: event.id.clone(),
+                invoice_id: event.entity_id.clone(),
+                severity: "error".to_string(),
+                code: code.to_string(),
+                message: message.to_string(),
+            })
+        };
+        if event.previous_hash.as_deref() != previous {
+            issue(
+                "AUDIT_BROKEN_CHAIN",
+                "audit previous_hash does not match the prior audit event",
+            );
+        }
+        if event.chain_hash() != *stored_hash {
+            issue(
+                "AUDIT_HASH_MISMATCH",
+                "audit event hash does not match its recomputed content",
+            );
+        }
+        previous = Some(stored_hash);
+    }
+    Ok(events.len())
 }
 
 /// Comprueba formato de hash, fechas, número emitido y campos obligatorios del registro.
@@ -405,7 +447,7 @@ mod tests {
             invoice.id.clone(),
             "tester".to_string(),
             fiscal_hash.clone(),
-            None,
+            db::latest_audit_hash(conn).expect("audit head"),
         );
         db::insert_issued_invoice(conn, invoice, &fiscal_hash, previous_hash, &audit_event)
             .expect("insert issued");
@@ -441,7 +483,7 @@ mod tests {
             invoice.id.clone(),
             "tester".to_string(),
             anulacion_hash.clone(),
-            None,
+            db::latest_audit_hash(&conn).expect("audit head"),
         );
         let target = std::env::temp_dir().join(format!(
             "cumplefactura-anulacion-{}.xml",
@@ -466,6 +508,80 @@ mod tests {
         assert!(result.valid, "{:?}", result.issues);
         assert_eq!(result.total_records, 2);
         assert_eq!(result.issue_count, 0);
+    }
+
+    #[test]
+    fn detects_row_tampering_in_both_chains() {
+        let mut conn = db::test_conn();
+        let company = company();
+        let customer = customer();
+        db::insert_company(&conn, &company).expect("company");
+        db::upsert_customer(&conn, &customer).expect("customer");
+        let invoice = issued_invoice(
+            company.id.clone(),
+            customer.id.clone(),
+            1,
+            "2026-05-28T10:00:00Z",
+        );
+        insert_issued(&mut conn, &invoice, None);
+        db::audit_change(&conn, "company", &company.id, "company_updated", &company)
+            .expect("audit change");
+        let before = verify(&conn).expect("verify");
+        assert!(before.valid, "{:?}", before.issues);
+        assert_eq!(before.audit_total_events, 2);
+
+        // Solo en este test: sin triggers de inalterabilidad, se manipula una fila de cada cadena.
+        conn.execute_batch(
+            "DROP TRIGGER fiscal_records_no_update;
+             DROP TRIGGER audit_events_no_update;
+             UPDATE fiscal_records SET fiscal_hash = '0000000000000000000000000000000000000000000000000000000000000000';
+             UPDATE audit_events SET actor = 'intruso' WHERE action = 'company_updated';",
+        )
+        .expect("tamper rows");
+
+        let result = verify(&conn).expect("verify");
+        assert!(!result.valid);
+        let codes: Vec<&str> = result
+            .issues
+            .iter()
+            .map(|issue| issue.code.as_str())
+            .collect();
+        assert!(codes.contains(&"HASH_MISMATCH"), "{codes:?}");
+        assert!(codes.contains(&"AUDIT_HASH_MISMATCH"), "{codes:?}");
+    }
+
+    #[test]
+    fn detects_broken_audit_link() {
+        let conn = db::test_conn();
+        let company = company();
+        db::insert_company(&conn, &company).expect("company");
+        db::audit_change(&conn, "company", &company.id, "company_created", &company)
+            .expect("first event");
+        let orphan =
+            AuditEvent::operational("company", &company.id, "company_updated", "h".into(), None);
+        conn.execute(
+            "INSERT INTO audit_events (id, entity_type, entity_id, action, actor, occurred_at, payload_hash, previous_hash, hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                orphan.id,
+                orphan.entity_type,
+                orphan.entity_id,
+                orphan.action,
+                orphan.actor,
+                orphan.occurred_at,
+                orphan.payload_hash,
+                orphan.previous_hash,
+                orphan.chain_hash(),
+            ],
+        )
+        .expect("orphan event");
+
+        let result = verify(&conn).expect("verify");
+        assert!(!result.valid);
+        assert!(result
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AUDIT_BROKEN_CHAIN"));
     }
 
     #[test]
