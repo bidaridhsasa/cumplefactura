@@ -167,6 +167,7 @@ const checks = [
     "Exportar auditoría",
     "Exportar CSV",
     "Libro de expedidas",
+    "Incluir facturas anuladas",
     "Exportar JSON",
     "Descargar PDF",
     "Crear copia de seguridad",

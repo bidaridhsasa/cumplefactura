@@ -20,7 +20,7 @@ import { Button } from "../ui/Button";
 import { Callout } from "../ui/Callout";
 import { DataTable, type Column } from "../ui/DataTable";
 import { EmptyState } from "../ui/EmptyState";
-import { DateInput, Field, Select } from "../ui/Field";
+import { Checkbox, DateInput, Field, Select } from "../ui/Field";
 import { Accent, Hero } from "../ui/Hero";
 import { Skeleton, useDelayedLoading } from "../ui/Skeleton";
 import { invoiceKind, invoiceStatus, paymentStatus } from "../ui/status";
@@ -255,12 +255,16 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
 /**
  * X1 · Libro registro de facturas expedidas: desplegable con el periodo (trimestre del año fiscal o
  * rango libre) y botón que pide la ruta con el diálogo nativo. Exporta la empresa activa.
+ * Casilla «Incluir facturas anuladas» (decisión 15.1, desmarcada = libro de siempre): las anuladas
+ * salen a cero con la columna `estado`. No hay vista previa del libro en pantalla, así que la marca
+ * es esa columna (un CSV no admite color).
  */
 function LibroExpedidas({ c }: { c: Ctx }) {
   const { m } = c;
   const [periodo, setPeriodo] = useState(String(Math.ceil((new Date().getMonth() + 1) / 3)));
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [anuladas, setAnuladas] = useState(false);
   const [from, to] = periodo === "rango" ? [desde, hasta] : quarterRange(m.fiscalYear, Number(periodo));
   const reason = !m.company ? t("error.sinEmpresa") : !from || !to || from > to ? t("libro.rangoInvalido") : null;
   return (
@@ -287,8 +291,9 @@ function LibroExpedidas({ c }: { c: Ctx }) {
             </Field>
           </>
         ) : null}
-        <span className="bdr-help cf-wide">{t("libro.ayuda")}</span>
-        <Button variant="primary" icon="download" disabled={reason !== null} reason={reason} onClick={() => void m.exportLibroExpedidas(from, to)}>
+        <Checkbox label={t("libro.incluirAnuladas")} checked={anuladas} onChange={(event) => setAnuladas(event.target.checked)} />
+        <span className="bdr-help cf-wide">{t(anuladas ? "libro.ayudaAnuladas" : "libro.ayuda")}</span>
+        <Button variant="primary" icon="download" disabled={reason !== null} reason={reason} onClick={() => void m.exportLibroExpedidas(from, to, anuladas)}>
           {t("libro.exportar")}
         </Button>
       </div>

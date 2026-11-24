@@ -176,6 +176,8 @@ export const es = {
   "libro.desde": "Desde",
   "libro.hasta": "Hasta",
   "libro.ayuda": "Una fila por factura y tipo de IVA. Las anuladas no se incluyen. Se puede importar en ContaPro.",
+  "libro.incluirAnuladas": "Incluir facturas anuladas",
+  "libro.ayudaAnuladas": "Una fila por factura y tipo de IVA. Las anuladas salen con importes a cero y la columna «estado» = ANULADA, para ver la numeración completa. ContaPro omite esas filas al importar.",
   "libro.exportar": "Exportar libro (CSV)",
   "libro.rangoInvalido": "Elige un periodo con la fecha de inicio antes que la de fin.",
   "facturas.anio": "Año",
