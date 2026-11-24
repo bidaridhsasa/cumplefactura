@@ -191,7 +191,8 @@ pub fn invoice_export_pdf(
     require("target_path", &target_path)?;
     let conn = state.lock()?;
     let invoice = db::invoice_pdf_data(&conn, &invoice_id)?;
-    let qr_environment = QrEnvironment::parse(&db::get_app_settings(&conn)?.qr_environment)?;
+    let qr_environment =
+        QrEnvironment::for_endpoint_name(&db::get_app_settings(&conn)?.verifactu_endpoint_name)?;
     pdf::write_invoice_pdf(&target_path, &invoice, qr_environment)?;
     Ok(target_path)
 }
