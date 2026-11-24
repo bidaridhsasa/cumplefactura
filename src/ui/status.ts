@@ -19,6 +19,8 @@ const INVOICE: Record<string, Status> = {
   Rectified: s("info", "estado.rectificada"),
   // S1: la anulación está registrada, pero la AEAT aún no la ha aceptado.
   VoidPending: s("warn", "estado.anulacionPendiente"),
+  // S1b (decisión 12.1): la AEAT rechazó la anulación; la factura sigue vigente.
+  VoidRejected: s("err", "estado.anulacionRechazada"),
   Void: s("neu", "estado.anulada"),
 };
 

@@ -331,6 +331,17 @@ export type VerifactuSubmissionSummary = {
   errores?: AeatError[];
 };
 
+/** S1b: rechazo de la última anulación (`invoice_anulacion_rejection`). */
+export type AnulacionRejection = {
+  submission_id: string;
+  submitted_at: string;
+  codigo_error: string | null;
+  descripcion_error: string | null;
+  errores: AeatError[];
+  /** La AEAT dice que el alta no consta: se propone `SinRegistroPrevio=S` (decisión 12.2). */
+  propose_sin_registro_previo: boolean;
+};
+
 /** Puertos SOAP del WSDL VERI*FACTU (ids técnicos; los nombres visibles están en i18n). */
 export const VERIFACTU_ENDPOINTS = [
   "SistemaVerifactuPruebas",
