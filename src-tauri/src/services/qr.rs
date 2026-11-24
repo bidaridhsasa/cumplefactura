@@ -5,10 +5,10 @@
 //! que `pdf` dibuja como vectores. `verifactu_qr_url` es la única función que forma la
 //! URL (Orden art. 21.2: NIF, serie y número, fecha de expedición e importe total).
 //!
-//! Entorno: el host de cotejo sigue al puerto SOAP al que envía el sidecar
-//! (`AppSettings::verifactu_endpoint_name`): pruebas mientras se envíe a pruebas y
-//! producción cuando S3 abra producción. Así el QR nunca apunta a un entorno distinto
-//! del que tiene el registro.
+//! Entorno: el host de cotejo sigue al puerto SOAP del sidecar: el del último envío de
+//! la factura o, si aún no se envió, `AppSettings::verifactu_endpoint_name`
+//! (`commands::invoices::pdf_qr_environment`). Pruebas mientras se envíe a pruebas y
+//! producción cuando S3 abra producción.
 //!
 //! Qué no hace nunca: generar QR para borradores (sin número ni fecha no hay nada que
 //! cotejar) ni producir imágenes: `qrcode` va sin features, solo da la matriz.
