@@ -90,6 +90,17 @@ pub fn upsert_invoice_series_config(
             "next_number must be greater than existing max invoice number {max_existing}"
         ));
     }
+    // RD 1619/2012, art. 6.1.a: numeración correlativa dentro de cada serie; con facturas
+    // emitidas el formato del número queda fijo (decisión 11.2).
+    if max_existing > 0 {
+        let (current_separator, current_padding) =
+            invoice_number_format(conn, &input.company_id, input.fiscal_year, &resolved_series)?;
+        if current_separator != separator || current_padding != input.padding {
+            return Err(format!(
+                "La serie {resolved_series} ya tiene facturas emitidas; para cambiar el formato crea una serie nueva"
+            ));
+        }
+    }
 
     let existing_id: Option<String> = conn
         .query_row(
