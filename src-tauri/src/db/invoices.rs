@@ -371,7 +371,7 @@ impl InvoiceListFilters {
         if let Some(value) = &status {
             if !matches!(
                 value.as_str(),
-                "Draft" | "Issued" | "VoidPending" | "Void" | "Rectified"
+                "Draft" | "Issued" | "VoidPending" | "VoidRejected" | "Void" | "Rectified"
             ) {
                 return Err(format!("unsupported invoice status: {value}"));
             }

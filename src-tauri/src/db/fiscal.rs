@@ -4,11 +4,19 @@ use super::*;
 
 /// Estado de la factura mientras la AEAT no confirma su anulación.
 pub const VOID_PENDING: &str = "VoidPending";
+/// Estado de la factura cuando la AEAT rechaza su anulación (decisión 12.1): sigue
+/// vigente fiscalmente; se puede reintentar la anulación o desistir.
+pub const VOID_REJECTED: &str = "VoidRejected";
+/// Código de error de la AEAT cuando el registro de alta a anular no consta allí
+/// (cuadro B «Cuadro Operativa Anulación», ERROR (6) del Diseño de registro VERI*FACTU).
+/// Con este rechazo se propone reenviar con `SinRegistroPrevio=S` (decisión 12.2).
+pub const AEAT_ERROR_REGISTRO_NO_EXISTE: &str = "3002";
 /// `payload_version` de las exportaciones XML de anulación: así se sabe, al guardar
 /// la respuesta de la AEAT, que el envío era una anulación.
 pub const ANULACION_PAYLOAD_VERSION: &str = "verifactu-anulacion-xml-v1";
 
-/// Registra la anulación en la cadena y deja la factura en `VoidPending`.
+/// Registra la anulación en la cadena y deja la factura en `VoidPending`. Vale desde
+/// `Issued` o desde `VoidRejected` (reintento tras rechazo).
 /// Solo pasa a `Void` cuando la AEAT acepta el envío (`record_verifactu_submission`).
 // Un argumento por dato del registro de anulación; agruparlos solo movería el problema.
 #[allow(clippy::too_many_arguments)]
@@ -39,15 +47,16 @@ pub fn insert_anulacion_record(
         .ok_or_else(|| format!("invoice not found: {invoice_id}"))?;
 
     tx.execute(
-        "UPDATE invoices SET status = ?3, void_reason = ?2 WHERE id = ?1 AND status = 'Issued'",
-        params![invoice_id, reason, VOID_PENDING],
+        "UPDATE invoices SET status = ?3, void_reason = ?2
+         WHERE id = ?1 AND status IN ('Issued', ?4)",
+        params![invoice_id, reason, VOID_PENDING, VOID_REJECTED],
     )
     .map_err(db_error)
     .and_then(|updated| {
         if updated == 1 {
             Ok(())
         } else {
-            Err("invoice must be issued to create anulacion".to_string())
+            Err("invoice must be issued or with rejected anulacion to create anulacion".to_string())
         }
     })?;
 
@@ -378,7 +387,8 @@ pub fn insert_verifactu_submission(
 /// Guarda el intento de envío y, si era una anulación, aplica la respuesta en la
 /// misma transacción:
 /// - aceptada (con o sin errores): factura `Void`, resultado `accepted`;
-/// - rechazada: factura vuelve a `Issued`, resultado `rejected`. El registro sigue en
+/// - rechazada: factura `VoidRejected` («Anulación rechazada», visible; decisión 12.1),
+///   resultado `rejected`; la auditoría guarda los códigos de error. El registro sigue en
 ///   la cadena (es el «registro anterior generado en este sistema informático», Diseño
 ///   de registro VERI*FACTU, hojas 2 y 3, `RegistroAnterior`) y la siguiente anulación
 ///   sale con `RechazoPrevio=S` (hoja 3 y cuadro B «Anulación por rechazo»);
@@ -400,15 +410,13 @@ pub fn record_verifactu_submission(
         .unwrap_or(false);
     let outcome = match record.response.status.as_str() {
         "accepted" | "accepted_with_errors" => Some(("Void", "accepted", "invoice_void_accepted")),
-        "rejected" => Some(("Issued", "rejected", "invoice_void_rejected")),
+        "rejected" => Some((VOID_REJECTED, "rejected", "invoice_void_rejected")),
         _ => None,
     };
     if let (true, Some((invoice_status, record_status, action))) = (is_anulacion, outcome) {
         let updated = tx
             .execute(
-                "UPDATE invoices SET status = ?2,
-                        void_reason = CASE WHEN ?2 = 'Issued' THEN NULL ELSE void_reason END
-                 WHERE id = ?1 AND status = ?3",
+                "UPDATE invoices SET status = ?2 WHERE id = ?1 AND status = ?3",
                 params![record.invoice_id, invoice_status, VOID_PENDING],
             )
             .map_err(db_error)?;
@@ -430,7 +438,13 @@ pub fn record_verifactu_submission(
                 ],
             )
             .map_err(db_error)?;
-            let payload = serde_json::json!({ "submission_id": id }).to_string();
+            let payload = serde_json::json!({
+                "submission_id": id,
+                "codigo_error": record.response.codigo_error,
+                "descripcion_error": record.response.descripcion_error,
+                "errores": record.response.errores,
+            })
+            .to_string();
             operational_audit(&tx, "invoice", record.invoice_id, action, &payload)?;
         }
     }
@@ -484,6 +498,104 @@ pub fn check_anulacion_export_is_current(
         Some((current, _, _)) if current == export_id => Ok(()),
         _ => Err("anulacion_not_pending".to_string()),
     }
+}
+
+/// Desistir de una anulación rechazada (decisión 12.1): la factura vuelve a `Issued`
+/// y queda constancia en la auditoría (`invoice_void_desisted`). El registro rechazado
+/// y su resultado en `anulacion_outcomes` no cambian (ambos son inalterables).
+pub fn desist_rejected_anulacion(conn: &mut Connection, invoice_id: &str) -> Result<(), String> {
+    let tx = conn.transaction().map_err(db_error)?;
+    let updated = tx
+        .execute(
+            "UPDATE invoices SET status = 'Issued', void_reason = NULL WHERE id = ?1 AND status = ?2",
+            params![invoice_id, VOID_REJECTED],
+        )
+        .map_err(db_error)?;
+    if updated != 1 {
+        return Err("anulacion_not_rejected".to_string());
+    }
+    let fiscal_record_id: Option<String> = tx
+        .query_row(
+            "SELECT ao.fiscal_record_id FROM anulacion_outcomes ao
+             JOIN fiscal_records fr ON fr.id = ao.fiscal_record_id
+             WHERE ao.invoice_id = ?1 AND ao.status = 'rejected'
+             ORDER BY fr.generated_at DESC, fr.rowid DESC LIMIT 1",
+            params![invoice_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(db_error)?;
+    let payload = serde_json::json!({ "fiscal_record_id": fiscal_record_id }).to_string();
+    operational_audit(
+        &tx,
+        "invoice",
+        invoice_id,
+        "invoice_void_desisted",
+        &payload,
+    )?;
+    tx.commit().map_err(db_error)
+}
+
+/// Rechazo de la última anulación de la factura, para la ficha y para proponer
+/// `SinRegistroPrevio=S`.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnulacionRejection {
+    pub submission_id: String,
+    pub submitted_at: String,
+    pub codigo_error: Option<String>,
+    pub descripcion_error: Option<String>,
+    pub errores: Vec<fiscal_contract::messages::ErrorRegistro>,
+    /// La AEAT dice que el alta no consta: se propone `SinRegistroPrevio=S` (decisión 12.2).
+    pub propose_sin_registro_previo: bool,
+}
+
+/// Rechazo de la última anulación de la factura; `None` si la última no fue rechazada.
+pub fn latest_anulacion_rejection(
+    conn: &Connection,
+    invoice_id: &str,
+) -> Result<Option<AnulacionRejection>, String> {
+    let row: Option<(String, String, Option<String>, Option<String>, String)> = conn
+        .query_row(
+            "SELECT s.id, s.submitted_at, s.codigo_error, s.descripcion_error, s.errores_json
+             FROM fiscal_records fr
+             JOIN anulacion_outcomes ao ON ao.fiscal_record_id = fr.id
+             JOIN verifactu_submissions s ON s.id = ao.submission_id
+             WHERE fr.invoice_id = ?1 AND fr.record_type = 'Anulacion' AND ao.status = 'rejected'
+               AND fr.rowid = (SELECT rowid FROM fiscal_records
+                               WHERE invoice_id = ?1 AND record_type = 'Anulacion'
+                               ORDER BY generated_at DESC, rowid DESC LIMIT 1)",
+            params![invoice_id],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(db_error)?;
+    Ok(row.map(
+        |(submission_id, submitted_at, codigo_error, descripcion_error, errores_json)| {
+            let errores: Vec<fiscal_contract::messages::ErrorRegistro> =
+                serde_json::from_str(&errores_json).unwrap_or_default();
+            let propose_sin_registro_previo = codigo_error.as_deref()
+                == Some(AEAT_ERROR_REGISTRO_NO_EXISTE)
+                || errores
+                    .iter()
+                    .any(|e| e.codigo.as_deref() == Some(AEAT_ERROR_REGISTRO_NO_EXISTE));
+            AnulacionRejection {
+                submission_id,
+                submitted_at,
+                codigo_error,
+                descripcion_error,
+                errores,
+                propose_sin_registro_previo,
+            }
+        },
+    ))
 }
 
 /// `true` si la última anulación de la factura fue rechazada por la AEAT: la nueva

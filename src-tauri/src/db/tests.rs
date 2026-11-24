@@ -1146,16 +1146,30 @@ fn anulacion_stays_pending_until_aeat_accepts_it() {
     assert_eq!(list_verifactu_submissions(&conn, None).unwrap().len(), 2);
 }
 
+fn last_audit_action(conn: &Connection, invoice_id: &str) -> String {
+    conn.query_row(
+        "SELECT action FROM audit_events WHERE entity_id = ?1 ORDER BY rowid DESC LIMIT 1",
+        params![invoice_id],
+        |row| row.get(0),
+    )
+    .unwrap()
+}
+
 #[test]
-fn rejected_anulacion_stays_in_chain_and_invoice_returns_to_issued() {
+fn rejected_anulacion_stays_in_chain_and_invoice_is_void_rejected() {
     let mut conn = memory_conn();
     let (invoice_id, _) = issued_invoice_with_export(&mut conn);
     let export_id = pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:05:00Z");
 
     submit_anulacion(&mut conn, &invoice_id, &export_id, "rejected");
+    // Decisión 12.1: estado visible «Anulación rechazada», no vuelve a «Emitida».
     assert_eq!(
         invoice_and_anulacion_status(&conn, &invoice_id),
-        ("Issued".to_string(), "rejected".to_string())
+        ("VoidRejected".to_string(), "rejected".to_string())
+    );
+    assert_eq!(
+        last_audit_action(&conn, &invoice_id),
+        "invoice_void_rejected"
     );
     let reason: Option<String> = conn
         .query_row(
@@ -1164,8 +1178,23 @@ fn rejected_anulacion_stays_in_chain_and_invoice_returns_to_issued() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(reason, None);
+    assert_eq!(reason.as_deref(), Some("Error en el importe"));
     assert!(latest_anulacion_rejected(&conn, &invoice_id).unwrap());
+    // Sin el código de alta inexistente no se propone SinRegistroPrevio.
+    let rejection = latest_anulacion_rejection(&conn, &invoice_id)
+        .unwrap()
+        .expect("rejection");
+    assert!(!rejection.propose_sin_registro_previo);
+    // Sigue vigente: entra en el filtro por su estado y en la exportación sin filtros.
+    let filtered = list_invoices_filtered(
+        &conn,
+        InvoiceListFilters {
+            status: Some("VoidRejected".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(filtered.len(), 1);
     // El registro rechazado sigue siendo el último de la cadena: la siguiente anulación
     // se encadena a él.
     let anulacion = &list_fiscal_records(&conn).unwrap()[0];
@@ -1183,13 +1212,18 @@ fn rejected_anulacion_stays_in_chain_and_invoice_returns_to_issued() {
         chain.issues
     );
 
-    // Reintento: nueva anulación pendiente; al aceptarse, la factura queda anulada.
+    // Reintento desde «Anulación rechazada»: nueva anulación pendiente; al aceptarse,
+    // la factura queda anulada.
     assert_eq!(
         check_anulacion_export_is_current(&conn, &export_id, &invoice_id).unwrap_err(),
         "anulacion_not_pending"
     );
     assert_eq!(pending_anulacion_export(&conn, &invoice_id).unwrap(), None);
     let retry = pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:10:00Z");
+    assert_eq!(
+        invoice_and_anulacion_status(&conn, &invoice_id),
+        ("VoidPending".to_string(), "created".to_string())
+    );
     assert!(!latest_anulacion_rejected(&conn, &invoice_id).unwrap());
     // Solo la anulación pendiente se puede enviar; el XML rechazado, no.
     check_anulacion_export_is_current(&conn, &retry, &invoice_id).unwrap();
@@ -1206,6 +1240,84 @@ fn rejected_anulacion_stays_in_chain_and_invoice_returns_to_issued() {
         invoice_and_anulacion_status(&conn, &invoice_id),
         ("Void".to_string(), "accepted".to_string())
     );
+}
+
+#[test]
+fn desisting_rejected_anulacion_returns_invoice_to_issued() {
+    let mut conn = memory_conn();
+    let (invoice_id, _) = issued_invoice_with_export(&mut conn);
+    // Solo se desiste de una anulación rechazada.
+    assert_eq!(
+        desist_rejected_anulacion(&mut conn, &invoice_id).unwrap_err(),
+        "anulacion_not_rejected"
+    );
+    let export_id = pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:05:00Z");
+    assert_eq!(
+        desist_rejected_anulacion(&mut conn, &invoice_id).unwrap_err(),
+        "anulacion_not_rejected"
+    );
+    submit_anulacion(&mut conn, &invoice_id, &export_id, "rejected");
+
+    desist_rejected_anulacion(&mut conn, &invoice_id).unwrap();
+    // Vuelve a «Emitida»; el registro rechazado y su resultado no cambian.
+    assert_eq!(
+        invoice_and_anulacion_status(&conn, &invoice_id),
+        ("Issued".to_string(), "rejected".to_string())
+    );
+    assert_eq!(
+        last_audit_action(&conn, &invoice_id),
+        "invoice_void_desisted"
+    );
+    let reason: Option<String> = conn
+        .query_row(
+            "SELECT void_reason FROM invoices WHERE id = ?1",
+            params![&invoice_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(reason, None);
+}
+
+#[test]
+fn anulacion_rejected_because_alta_is_missing_proposes_sin_registro_previo() {
+    let mut conn = memory_conn();
+    let (invoice_id, _) = issued_invoice_with_export(&mut conn);
+    assert!(latest_anulacion_rejection(&conn, &invoice_id)
+        .unwrap()
+        .is_none());
+    let export_id = pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:05:00Z");
+    let mut response = aeat_response("rejected");
+    response.codigo_error = Some(AEAT_ERROR_REGISTRO_NO_EXISTE.to_string());
+    response.descripcion_error = Some("No existe el registro de facturación".to_string());
+    response.errores = vec![fiscal_contract::messages::ErrorRegistro {
+        codigo: Some(AEAT_ERROR_REGISTRO_NO_EXISTE.to_string()),
+        descripcion: Some("No existe el registro de facturación".to_string()),
+    }];
+    record_verifactu_submission(
+        &mut conn,
+        VerifactuSubmissionRecord {
+            invoice_id: &invoice_id,
+            fiscal_export_id: &export_id,
+            response: &response,
+        },
+    )
+    .unwrap();
+
+    let rejection = latest_anulacion_rejection(&conn, &invoice_id)
+        .unwrap()
+        .expect("rejection");
+    assert!(rejection.propose_sin_registro_previo);
+    assert_eq!(
+        rejection.codigo_error.as_deref(),
+        Some(AEAT_ERROR_REGISTRO_NO_EXISTE)
+    );
+    assert_eq!(rejection.errores.len(), 1);
+
+    // Tras un nuevo intento pendiente ya no hay rechazo vigente que proponer.
+    pending_anulacion(&mut conn, &invoice_id, "2026-05-28T10:10:00Z");
+    assert!(latest_anulacion_rejection(&conn, &invoice_id)
+        .unwrap()
+        .is_none());
 }
 
 #[test]
