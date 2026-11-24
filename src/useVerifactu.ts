@@ -20,7 +20,7 @@ import type {
   VerifactuSubmissionSummary,
   VerifactuXmlResult,
 } from "./types";
-import { action, need, type Model } from "./useCumpleFactura";
+import { action, need, run, type Model } from "./useCumpleFactura";
 
 /** Fila «como en la tabla» a partir de la respuesta del envío de esta sesión. */
 function asSummary(result: VerifactuSubmission): VerifactuSubmissionSummary {
@@ -164,12 +164,13 @@ export function useVerifactu(m: Model) {
     },
   );
 
-  /** S1b: códigos del rechazo de la última anulación; `null` si no la hay o si el comando no existe. */
+  /** S1b: códigos del rechazo de la última anulación; `null` si no la hay o si el comando no existe. Otro error sale en el toast. */
   async function loadAnulacionRejection(invoiceId: string): Promise<AnulacionRejection | null> {
     try {
       return await invoke<AnulacionRejection | null>("invoice_anulacion_rejection", { invoiceId });
-    } catch {
-      return null;
+    } catch (error) {
+      if (isMissingCommand(error)) return null;
+      return run(() => Promise.reject(error));
     }
   }
 

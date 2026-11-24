@@ -44,10 +44,11 @@ export function FacturaDetalle(c: Ctx) {
     void m.loadDetail(id);
   }, [id]);
   // S1b: códigos del rechazo de la anulación, solo con «Anulación rechazada».
-  const listedStatus = m.invoices.find((item) => item.id === id)?.status;
+  // El estado de la ficha manda: la factura puede no estar en la página o filtro de la lista.
+  const listedStatus = (m.detail?.id === id ? m.detail.status : undefined) ?? m.invoices.find((item) => item.id === id)?.status;
   useEffect(() => {
     setRejection(null);
-    if (listedStatus === "VoidRejected") void vf.loadAnulacionRejection(id).then(setRejection);
+    if (listedStatus === "VoidRejected") void vf.loadAnulacionRejection(id).then(setRejection, () => undefined);
   }, [id, listedStatus]);
   const pay = usePayments({ invoiceId: id }, async () => {
     await m.loadDetail(id);

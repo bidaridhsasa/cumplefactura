@@ -312,8 +312,9 @@ pub fn verifactu_xml_anulacion_draft_export(
     // y la persona lo ha confirmado en la interfaz.
     let sin_registro_previo = sin_registro_previo.unwrap_or(false);
     if sin_registro_previo
-        && !db::latest_anulacion_rejection(&conn, &invoice_id)?
-            .is_some_and(|rejection| rejection.propose_sin_registro_previo)
+        && (invoice.status != db::VOID_REJECTED
+            || !db::latest_anulacion_rejection(&conn, &invoice_id)?
+                .is_some_and(|rejection| rejection.propose_sin_registro_previo))
     {
         return Err("sin_registro_previo_not_proposed".to_string());
     }
