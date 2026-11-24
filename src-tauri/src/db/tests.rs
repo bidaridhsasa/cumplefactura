@@ -565,6 +565,61 @@ fn rejects_series_next_number_not_after_existing_invoice() {
 }
 
 #[test]
+fn series_format_is_locked_once_invoices_are_issued() {
+    let mut conn = memory_conn();
+    let company = company();
+    let customer = customer();
+    insert_company(&conn, &company).expect("company insert");
+    upsert_customer(&conn, &customer).expect("customer upsert");
+    let series_input = |separator: &str, padding: i32, next_number: i64| InvoiceSeriesConfigInput {
+        company_id: company.id.clone(),
+        label: "Alquiler".to_string(),
+        series_code: "AL".to_string(),
+        fiscal_year: 2026,
+        include_year: false,
+        separator: separator.to_string(),
+        padding,
+        next_number,
+        is_default: true,
+    };
+
+    // Sin facturas emitidas el formato se puede cambiar.
+    upsert_invoice_series_config(&mut conn, series_input("-", 1, 1)).expect("first config");
+    upsert_invoice_series_config(&mut conn, series_input("/", 3, 1)).expect("format change");
+
+    let mut issued = invoice(company.id.clone(), customer.id.clone());
+    issued.series = "AL".to_string();
+    issued.number = Some(1);
+    issued.status = InvoiceStatus::Issued;
+    issued.issued_at = Some("2026-06-03T10:00:00Z".to_string());
+    insert_invoice_draft(&mut conn, &issued).expect("issued insert");
+
+    let error = upsert_invoice_series_config(&mut conn, series_input("-", 3, 2))
+        .expect_err("separator change must be rejected");
+    assert_eq!(
+        error,
+        "La serie AL ya tiene facturas emitidas; para cambiar el formato crea una serie nueva"
+    );
+    upsert_invoice_series_config(&mut conn, series_input("/", 1, 2))
+        .expect_err("padding change must be rejected");
+
+    let config = &list_invoice_series_configs(&conn, &company.id, 2026).expect("configs")[0];
+    assert_eq!(
+        (
+            config.separator.as_str(),
+            config.padding,
+            config.next_number
+        ),
+        ("/", 3, 1)
+    );
+
+    // Mismo formato: se puede seguir ajustando la serie.
+    let kept =
+        upsert_invoice_series_config(&mut conn, series_input("/", 3, 2)).expect("same format");
+    assert_eq!(kept.preview, "AL/002");
+}
+
+#[test]
 fn backup_database_creates_sqlite_file() {
     let conn = memory_conn();
     let target = std::env::temp_dir().join(format!(
