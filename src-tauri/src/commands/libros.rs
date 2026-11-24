@@ -14,17 +14,28 @@ pub fn libro_expedidas_export(
     from: String,
     to: String,
     target_path: String,
+    include_void: Option<bool>,
 ) -> Result<ExportResult, String> {
     require("company_id", &company_id)?;
     require("target_path", &target_path)?;
+    let include_void = include_void.unwrap_or(false);
     let conn = state.lock()?;
-    let (csv, resumen) = libro_registro::libro_expedidas_csv(&conn, &company_id, &from, &to)?;
+    let (csv, resumen) =
+        libro_registro::libro_expedidas_csv(&conn, &company_id, &from, &to, include_void)?;
     export::write_new_file(&target_path, &csv)?;
+    let anuladas = if include_void {
+        format!(
+            "{} anuladas a cero (columna estado). Borradores no se incluyen.",
+            resumen.anuladas
+        )
+    } else {
+        "Anuladas y borradores no se incluyen.".to_string()
+    };
     Ok(ExportResult {
         target_path,
         status: "created".to_string(),
         notes: vec![format!(
-            "{} facturas, {} filas (una por tipo impositivo). Anuladas y borradores no se incluyen.",
+            "{} facturas, {} filas (una por tipo impositivo). {anuladas}",
             resumen.facturas, resumen.filas
         )],
     })

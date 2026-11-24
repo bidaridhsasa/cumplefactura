@@ -10,6 +10,10 @@
 //! registro de anulación de VERI*FACTU deja la factura sin efecto, así que no se lleva al libro.
 //! Las rectificativas por diferencias (I) salen con el signo guardado (negativo si reducen la
 //! base); las de sustitución (S) restan la original con filas negativas y suman la nueva.
+//!
+//! Opción `include_void` (decisión 15.1): las anuladas salen en una fila con importes a cero para
+//! que la numeración se vea completa, y se añade al final la columna `estado` (EMITIDA,
+//! RECTIFICADA, ANULADA). Sin la opción el CSV no cambia (sin `estado`), para no romper lectores.
 
 use crate::services::export;
 use crate::services::verifactu::{
@@ -25,6 +29,7 @@ total;tipo_rectificativa;factura_rectificada;fecha_factura_rectificada;tipo_oper
 pub struct LibroResumen {
     pub facturas: usize,
     pub filas: usize,
+    pub anuladas: usize,
 }
 
 /// Genera el CSV del periodo `[from, to]` (fechas `AAAA-MM-DD`, ambas incluidas).
@@ -33,6 +38,7 @@ pub fn libro_expedidas_csv(
     company_id: &str,
     from: &str,
     to: &str,
+    include_void: bool,
 ) -> Result<(String, LibroResumen), String> {
     let (from, to) = (iso_date(from)?, iso_date(to)?);
     if from > to {
@@ -41,11 +47,13 @@ pub fn libro_expedidas_csv(
     let mut invoices = conn
         .prepare(
             "SELECT i.id, i.series, i.number, i.kind, i.issued_at, i.rectification_reason_code,
-                    i.rectification_method, cu.display_name, cu.tax_id, r.series, r.number, r.issued_at, r.id
+                    i.rectification_method, cu.display_name, cu.tax_id, r.series, r.number, r.issued_at, r.id,
+                    i.status
              FROM invoices i
              JOIN customers cu ON cu.id = i.customer_id
              LEFT JOIN invoices r ON r.id = i.rectifies_invoice_id
-             WHERE i.company_id = ?1 AND i.status IN ('Issued', 'Rectified')
+             WHERE i.company_id = ?1
+               AND (i.status IN ('Issued', 'Rectified') OR (?4 AND i.status = 'Void'))
                AND i.number IS NOT NULL AND i.issued_at IS NOT NULL
                AND substr(i.issued_at, 1, 10) BETWEEN ?2 AND ?3
              ORDER BY i.issued_at, i.series, i.number",
@@ -62,7 +70,7 @@ pub fn libro_expedidas_csv(
         .map_err(db_error)?;
 
     let rows = invoices
-        .query_map(params![company_id, from, to], |row| {
+        .query_map(params![company_id, from, to, include_void], |row| {
             Ok(Header {
                 id: row.get(0)?,
                 series: row.get(1)?,
@@ -80,14 +88,19 @@ pub fn libro_expedidas_csv(
                     _ => None,
                 },
                 rectified_id: row.get(12)?,
+                status: row.get(13)?,
             })
         })
         .map_err(db_error)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(db_error)?;
 
-    let mut csv = format!("\u{feff}{HEADER}");
-    let mut filas = 0;
+    let mut csv = if include_void {
+        format!("\u{feff}{};estado\n", HEADER.trim_end())
+    } else {
+        format!("\u{feff}{HEADER}")
+    };
+    let (mut filas, mut anuladas) = (0, 0);
     for invoice in &rows {
         let tipo_factura =
             registro_alta_invoice_type_for_kind(&invoice.kind, invoice.reason.as_deref())?;
@@ -115,16 +128,28 @@ pub fn libro_expedidas_csv(
         };
         // Sustitución (S): la rectificativa lleva los importes nuevos completos y la original sigue
         // en el libro; se resta la original (filas negativas) para que el libro sume lo correcto.
-        let mut lines = match (invoice.method.as_deref(), &invoice.rectified_id) {
-            (Some("S"), Some(original)) => group_rows(original, -1)?,
-            _ => Vec::new(),
+        let estado = match invoice.status.as_str() {
+            "Void" => "ANULADA",
+            "Rectified" => "RECTIFICADA",
+            _ => "EMITIDA",
         };
-        lines.extend(group_rows(&invoice.id, 1)?);
+        // Anulada (solo con `include_void`): una fila a cero; no suma ni resta nada al periodo.
+        let lines = if estado == "ANULADA" {
+            anuladas += 1;
+            vec![[0; 5]]
+        } else {
+            let mut lines = match (invoice.method.as_deref(), &invoice.rectified_id) {
+                (Some("S"), Some(original)) => group_rows(original, -1)?,
+                _ => Vec::new(),
+            };
+            lines.extend(group_rows(&invoice.id, 1)?);
+            lines
+        };
         for [iva_bp, irpf_bp, base, cuota, retencion] in lines {
             // Recargo de equivalencia: aún no se emite (N3); columnas vacías hasta entonces.
             // Fecha de operación vacía: hoy coincide siempre con la de expedición (art. 63.3).
             csv.push_str(&format!(
-                "{};;{};{};{};{};{};{};{};{};;;{};{};{};{};{};{};venta_nacional\n",
+                "{};;{};{};{};{};{};{};{};{};;;{};{};{};{};{};{};venta_nacional",
                 &invoice.issued_at[..10],
                 export::cell(&invoice.series),
                 export::cell(&format_invoice_number(&invoice.series, invoice.number)),
@@ -141,6 +166,11 @@ pub fn libro_expedidas_csv(
                 rect_number,
                 rect_date,
             ));
+            if include_void {
+                csv.push(';');
+                csv.push_str(estado);
+            }
+            csv.push('\n');
             filas += 1;
         }
     }
@@ -149,6 +179,7 @@ pub fn libro_expedidas_csv(
         LibroResumen {
             facturas: rows.len(),
             filas,
+            anuladas,
         },
     ))
 }
@@ -165,6 +196,7 @@ struct Header {
     customer_tax_id: String,
     rectified: Option<(String, i64, String)>,
     rectified_id: Option<String>,
+    status: String,
 }
 
 /// Céntimos o puntos básicos → `1234,56` (coma decimal, sin miles: lo leen Excel y ContaPro).
@@ -228,7 +260,7 @@ mod tests {
         let conn = test_conn();
         seed(&conn);
         let (csv, resumen) =
-            libro_expedidas_csv(&conn, "co", "2026-04-01", "2026-06-30").expect("libro");
+            libro_expedidas_csv(&conn, "co", "2026-04-01", "2026-06-30", false).expect("libro");
         let expected = format!(
             "\u{feff}{HEADER}\
 2026-04-02;;\"A\";\"A-1\";F1;\"Cliente; Demo \"\"SA\"\"\";\"A00000000\";100,00;21,00;21,00;;;0,00;0,00;121,00;;;;venta_nacional\n\
@@ -239,6 +271,51 @@ mod tests {
         );
         assert_eq!(csv, expected);
         assert_eq!((resumen.facturas, resumen.filas), (4, 5));
+    }
+
+    /// Decisión 15.1: con la opción, la anulada sale una vez a cero con `estado=ANULADA`; el resto
+    /// son las filas de referencia más la columna `estado`, y los totales del periodo no cambian.
+    #[test]
+    fn include_void_lists_voided_invoice_at_zero() {
+        let conn = test_conn();
+        seed(&conn);
+        let (base, _) =
+            libro_expedidas_csv(&conn, "co", "2026-04-01", "2026-06-30", false).expect("libro");
+        let (csv, resumen) =
+            libro_expedidas_csv(&conn, "co", "2026-04-01", "2026-06-30", true).expect("libro");
+        let lines: Vec<&str> = csv.lines().collect();
+        assert!(lines[0].ends_with(";tipo_operacion;estado"));
+        let voided: Vec<&&str> = lines.iter().filter(|l| l.contains("\"A-4\"")).collect();
+        assert_eq!(
+            voided,
+            [&"2026-05-10;;\"A\";\"A-4\";F1;\"Cliente; Demo \"\"SA\"\"\";\"A00000000\";0,00;0,00;0,00;;;0,00;0,00;0,00;;;;venta_nacional;ANULADA"]
+        );
+        assert!(lines[1].ends_with(";RECTIFICADA") && lines[2].ends_with(";EMITIDA"));
+        // Quitando la anulada y la columna `estado`, queda el CSV de referencia.
+        let rest: Vec<&str> = lines[1..]
+            .iter()
+            .filter(|l| !l.ends_with(";ANULADA"))
+            .map(|l| l.rsplit_once(';').expect("estado").0)
+            .collect();
+        assert_eq!(rest, base.lines().skip(1).collect::<Vec<_>>());
+        assert_eq!(
+            (resumen.facturas, resumen.filas, resumen.anuladas),
+            (5, 6, 1)
+        );
+        assert_eq!(period_total(&csv), period_total(&base));
+    }
+
+    /// Suma de la columna `total` en céntimos; se cuenta desde `venta_nacional` hacia la izquierda
+    /// porque los textos entrecomillados pueden llevar `;`.
+    fn period_total(csv: &str) -> i64 {
+        csv.lines()
+            .skip(1)
+            .map(|line| {
+                let fixed = line.split_once(";venta_nacional").expect("fila").0;
+                let total = fixed.rsplitn(5, ';').nth(3).expect("total");
+                total.replace(',', "").parse::<i64>().expect("céntimos")
+            })
+            .sum()
     }
 
     #[test]
@@ -257,7 +334,7 @@ mod tests {
         )
         .expect("seed S");
         let (csv, resumen) =
-            libro_expedidas_csv(&conn, "co", "2026-08-01", "2026-08-31").expect("libro");
+            libro_expedidas_csv(&conn, "co", "2026-08-01", "2026-08-31", false).expect("libro");
         let rows: Vec<&str> = csv.lines().skip(1).collect();
         assert_eq!(resumen.filas, 2);
         assert!(
@@ -269,7 +346,7 @@ mod tests {
     #[test]
     fn rejects_bad_period() {
         let conn = test_conn();
-        assert!(libro_expedidas_csv(&conn, "co", "2026-07-01", "2026-06-30").is_err());
-        assert!(libro_expedidas_csv(&conn, "co", "30/06/2026", "2026-06-30").is_err());
+        assert!(libro_expedidas_csv(&conn, "co", "2026-07-01", "2026-06-30", false).is_err());
+        assert!(libro_expedidas_csv(&conn, "co", "30/06/2026", "2026-06-30", false).is_err());
     }
 }
