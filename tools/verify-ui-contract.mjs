@@ -90,6 +90,8 @@ const checks = [
     "verifactu_submit",
     "verifactu_submission_list",
     "verifactu_pending_anulacion",
+    "invoice_anulacion_rejection",
+    "invoice_void_desist",
     "rectification_advice",
     "commercial_document_list",
     "commercial_document_get",

@@ -320,6 +320,7 @@ pub fn verifactu_xml_anulacion_draft_export(
     invoice_id: String,
     target_path: String,
     reason: String,
+    sin_registro_previo: Option<bool>,
 ) -> Result<VerifactuXmlResult, String> {
     require("invoice_id", &invoice_id)?;
     require("target_path", &target_path)?;
@@ -330,14 +331,29 @@ pub fn verifactu_xml_anulacion_draft_export(
 
     let mut conn = state.lock()?;
     let invoice = db::invoice_pdf_data(&conn, &invoice_id)?;
-    if invoice.status != "Issued" {
-        return Err("anulacion requires invoice status Issued".to_string());
+    // Desde «Anulación rechazada» se reintenta con un registro nuevo (decisión 12.1).
+    if invoice.status != "Issued" && invoice.status != db::VOID_REJECTED {
+        return Err("anulacion requires invoice status Issued or VoidRejected".to_string());
     }
     if invoice.fiscal_hash.is_none() {
         return Err("anulacion requires an issued invoice fiscal_hash".to_string());
     }
     let generated_at = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let rechazo_previo = db::latest_anulacion_rejected(&conn, &invoice_id)?;
+    // Decisión 12.2: solo si la AEAT rechazó la última anulación porque el alta no consta
+    // y la persona lo ha confirmado en la interfaz.
+    let sin_registro_previo = sin_registro_previo.unwrap_or(false);
+    if sin_registro_previo
+        && (invoice.status != db::VOID_REJECTED
+            || !db::latest_anulacion_rejection(&conn, &invoice_id)?
+                .is_some_and(|rejection| rejection.propose_sin_registro_previo))
+    {
+        return Err("sin_registro_previo_not_proposed".to_string());
+    }
+    let flags = verifactu::AnulacionFlags {
+        rechazo_previo,
+        sin_registro_previo,
+    };
     let previous = match db::latest_fiscal_record_link_for_company(&conn, &invoice.company_id)? {
         Some(link) => link,
         None => invoice_self_link(&invoice)?,
@@ -353,7 +369,7 @@ pub fn verifactu_xml_anulacion_draft_export(
         &invoice,
         &previous,
         &generated_at,
-        rechazo_previo,
+        flags,
         &assets,
     )?;
     let previous_audit_hash = db::latest_audit_hash(&conn)?;
@@ -392,6 +408,9 @@ pub fn verifactu_xml_anulacion_draft_export(
     ];
     if rechazo_previo {
         notes.push("Previous anulacion was rejected by the AEAT: RechazoPrevio=S.".to_string());
+    }
+    if sin_registro_previo {
+        notes.push("Alta not registered at the AEAT: SinRegistroPrevio=S.".to_string());
     }
     Ok(VerifactuXmlResult {
         target_path,
@@ -509,6 +528,26 @@ pub fn verifactu_pending_anulacion(
             xml_sha256,
         },
     ))
+}
+
+/// Rechazo de la última anulación de la factura (códigos de la AEAT y si se propone
+/// `SinRegistroPrevio=S`). `None` si la última anulación no fue rechazada.
+#[tauri::command]
+pub fn invoice_anulacion_rejection(
+    state: State<'_, AppState>,
+    invoice_id: String,
+) -> Result<Option<db::AnulacionRejection>, String> {
+    require("invoice_id", &invoice_id)?;
+    let conn = state.lock()?;
+    db::latest_anulacion_rejection(&conn, &invoice_id)
+}
+
+/// Desistir de una anulación rechazada: la factura vuelve a «Emitida» (decisión 12.1).
+#[tauri::command]
+pub fn invoice_void_desist(state: State<'_, AppState>, invoice_id: String) -> Result<(), String> {
+    require("invoice_id", &invoice_id)?;
+    let mut conn = state.lock()?;
+    db::desist_rejected_anulacion(&mut conn, &invoice_id)
 }
 
 /// Respuestas de la AEAT guardadas, de la más reciente a la más antigua.

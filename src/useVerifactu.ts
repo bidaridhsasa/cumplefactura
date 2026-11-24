@@ -13,13 +13,14 @@ import { useEffect, useState } from "react";
 import { t } from "./i18n/es";
 import { isMissingCommand } from "./lib/tauri";
 import type {
+  AnulacionRejection,
   SubmissionPackage,
   SubmitPreflight,
   VerifactuSubmission,
   VerifactuSubmissionSummary,
   VerifactuXmlResult,
 } from "./types";
-import { action, need, type Model } from "./useCumpleFactura";
+import { action, need, run, type Model } from "./useCumpleFactura";
 
 /** Fila «como en la tabla» a partir de la respuesta del envío de esta sesión. */
 function asSummary(result: VerifactuSubmission): VerifactuSubmissionSummary {
@@ -68,7 +69,7 @@ export function useVerifactu(m: Model) {
   const [submissionsAvailable, setSubmissionsAvailable] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  const issuedInvoices = m.invoices.filter((item) => ["Issued", "VoidPending", "Void", "Rectified"].includes(item.status));
+  const issuedInvoices = m.invoices.filter((item) => ["Issued", "VoidPending", "VoidRejected", "Void", "Rectified"].includes(item.status));
   const selected = m.invoices.find((item) => item.id === selectedId) ?? issuedInvoices[0] ?? null;
   const needsPassword = m.passwordMode !== "env";
   const waitLeft = waitSecondsLeft(submissions, now);
@@ -141,11 +142,19 @@ export function useVerifactu(m: Model) {
     },
   );
 
-  /** Anular: XML de anulación encadenado; la factura pasa a Anulada en Rust. */
+  /**
+   * Anular: XML de anulación encadenado; la factura queda «Anulación pendiente» en Rust.
+   * `sinRegistroPrevio` solo tras confirmarlo la persona (decisión 12.2); Rust lo vuelve a comprobar.
+   */
   const exportCancelXml = action(
     t("ok.anulacion"),
-    async (invoiceId: string, reason: string) => {
-      const result = await invoke<VerifactuXmlResult>("verifactu_xml_anulacion_draft_export", { invoiceId, targetPath: m.paths.cancelXml, reason });
+    async (invoiceId: string, reason: string, sinRegistroPrevio = false) => {
+      const result = await invoke<VerifactuXmlResult>("verifactu_xml_anulacion_draft_export", {
+        invoiceId,
+        targetPath: m.paths.cancelXml,
+        reason,
+        sinRegistroPrevio,
+      });
       return { invoiceId, result };
     },
     async ({ invoiceId, result }) => {
@@ -153,6 +162,23 @@ export function useVerifactu(m: Model) {
       useForSubmission(invoiceId, result);
       await m.refreshData();
     },
+  );
+
+  /** S1b: códigos del rechazo de la última anulación; `null` si no la hay o si el comando no existe. Otro error sale en el toast. */
+  async function loadAnulacionRejection(invoiceId: string): Promise<AnulacionRejection | null> {
+    try {
+      return await invoke<AnulacionRejection | null>("invoice_anulacion_rejection", { invoiceId });
+    } catch (error) {
+      if (isMissingCommand(error)) return null;
+      return run(() => Promise.reject(error));
+    }
+  }
+
+  /** S1b: desistir de la anulación rechazada; la factura vuelve a Emitida en Rust. */
+  const desistVoid = action(
+    t("ok.desistir"),
+    (invoiceId: string) => invoke<void>("invoice_void_desist", { invoiceId }),
+    () => m.refreshData(),
   );
 
   /** Entrada común de comprobación y envío: paquete exportado, certificado y contraseña en memoria. */
@@ -220,6 +246,8 @@ export function useVerifactu(m: Model) {
     canSubmit,
     exportXml,
     exportCancelXml,
+    loadAnulacionRejection,
+    desistVoid,
     preflightSubmit,
     submitToAeat,
     retry,
