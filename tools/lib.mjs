@@ -15,8 +15,8 @@ export const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const evidenceDir = resolve(root, "tests/regulatory/evidence");
 
 /**
- * Carpeta `target` de cargo: `CARGO_TARGET_DIR` (absoluta o relativa a la raíz,
- * como la resuelve cargo) o `<repo>/target`.
+ * Carpeta `target` de cargo: `CARGO_TARGET_DIR` (absoluta, o relativa a la raíz del repo,
+ * que es el cwd de los scripts npm y del gate) o `<repo>/target`.
  */
 export function cargoTargetDir(env = process.env) {
   const dir = env.CARGO_TARGET_DIR?.trim();
