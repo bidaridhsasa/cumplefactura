@@ -550,7 +550,21 @@ fn push_rectification_info(xml: &mut String, invoice: &InvoicePdfData) -> Result
             "sf:BaseRectificada",
             &money(source.taxable_base_cents),
         );
-        push_text(xml, 8, "sf:CuotaRectificada", &money(source.tax_cents));
+        // CuotaRectificada es solo IVA; el recargo va aparte (`DesgloseRectificacionType`).
+        push_text(
+            xml,
+            8,
+            "sf:CuotaRectificada",
+            &money(source.tax_cents - source.surcharge_cents),
+        );
+        if source.surcharge_cents != 0 {
+            push_text(
+                xml,
+                8,
+                "sf:CuotaRecargoRectificado",
+                &money(source.surcharge_cents),
+            );
+        }
         xml.push_str("      </sf:ImporteRectificacion>\n");
     }
     Ok(())
@@ -824,6 +838,7 @@ mod tests {
             issued_at: "2026-05-28T12:00:00Z".to_string(),
             taxable_base_cents: 10_000,
             tax_cents: 2_100,
+            surcharge_cents: 0,
         });
         invoice
     }
@@ -1313,6 +1328,21 @@ mod tests {
     }
 
     #[test]
+    fn substitutive_rectification_splits_vat_and_surcharge() {
+        let mut invoice = rectifying_invoice();
+        invoice.rectification_method = Some("S".to_string());
+        let source = invoice.rectified_invoice.as_mut().expect("source");
+        source.tax_cents = 2_620;
+        source.surcharge_cents = 520;
+        let xml = build_verifactu_xml_draft(&invoice, Some(&previous_link())).expect("xml");
+        assert!(xml.contains(
+            "        <sf:CuotaRectificada>21.00</sf:CuotaRectificada>
+        <sf:CuotaRecargoRectificado>5.20</sf:CuotaRecargoRectificado>
+"
+        ));
+    }
+
+    #[test]
     fn breakdown_over_twelve_groups_is_an_error() {
         let mut invoice = invoice();
         invoice.lines = (0..13)
@@ -1342,6 +1372,20 @@ mod tests {
             &assets,
         )
         .expect("XSD verde para S1, S2, E1–E6, N1, N2 y recargo");
+        let _ = std::fs::remove_file(&target);
+
+        let mut substitutive = rectifying_invoice();
+        substitutive.rectification_method = Some("S".to_string());
+        let source = substitutive.rectified_invoice.as_mut().expect("source");
+        source.tax_cents = 2_620;
+        source.surcharge_cents = 520;
+        write_verifactu_xml_draft_validated(
+            target.to_str().expect("temp path"),
+            &substitutive,
+            Some(&previous_link()),
+            &assets,
+        )
+        .expect("XSD verde con CuotaRecargoRectificado");
         let _ = std::fs::remove_file(&target);
     }
 }
