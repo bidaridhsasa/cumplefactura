@@ -308,6 +308,14 @@ mod tests {
             ..launch(&gate, false)
         };
         assert!(flags(&manual).is_empty());
+
+        let mut off_in_production = AppSettings::default();
+        off_in_production.verifactu_environment = "production".to_string();
+        assert_eq!(
+            flags(&launch(&off_in_production, true)),
+            ["--allow-aeat"],
+            "producción con el envío real apagado y la variable puesta: sin --allow-production"
+        );
     }
 
     #[test]

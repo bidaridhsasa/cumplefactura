@@ -157,10 +157,10 @@ impl AppSettings {
 
     /// Banderas del sidecar: `(--allow-aeat, --allow-production)`.
     /// `env_allow_aeat` es `CUMPLEFACTURA_SIDECAR_ALLOW_AEAT=1` (gate y homologación).
-    /// Producción solo con el envío real encendido.
+    /// Producción solo con el envío real encendido en Ajustes: la variable nunca la abre.
     pub fn sidecar_flags(&self, env_allow_aeat: bool) -> (bool, bool) {
-        let allow_aeat = self.aeat_sending_enabled || env_allow_aeat;
-        (allow_aeat, allow_aeat && self.is_production())
+        let production = self.aeat_sending_enabled && self.is_production();
+        (self.aeat_sending_enabled || env_allow_aeat, production)
     }
 }
 
