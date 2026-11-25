@@ -17,6 +17,7 @@ pub enum TerritoryFlag {
 /// anexo de la Orden HAC/1177/2024 («Diseño de registro», hoja «Listas»). Por defecto S1: las
 /// facturas normales no cambian. IGIC, IPSI y las claves de régimen especiales no existen aquí.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(try_from = "String")]
 pub enum VatTreatment {
     /// Sujeta y no exenta.
     #[default]
@@ -39,6 +40,14 @@ pub enum VatTreatment {
     N1,
     /// No sujeta por reglas de localización.
     N2,
+}
+
+/// IGIC, IPSI, E7/E8 u otra clave que llegue de la interfaz: `vat_treatment_unsupported:<código>`.
+impl TryFrom<String> for VatTreatment {
+    type Error = String;
+    fn try_from(code: String) -> Result<Self, String> {
+        Self::parse(&code)
+    }
 }
 
 impl VatTreatment {
@@ -208,6 +217,9 @@ mod tests {
             "vat_rate_not_allowed_for:N2"
         );
         assert!(VatTreatment::parse("E7").is_err());
+        let err = serde_json::from_str::<VatTreatment>("\"E8\"").unwrap_err();
+        assert!(err.to_string().contains("vat_treatment_unsupported:E8"));
+        assert_eq!(serde_json::to_string(&VatTreatment::E5).unwrap(), "\"E5\"");
     }
 
     #[test]

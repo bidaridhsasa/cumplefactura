@@ -291,7 +291,7 @@ pub(crate) fn build_line(
     let gross_cents = input
         .quantity
         .checked_mul(input.unit_price_cents)
-        .ok_or_else(|| "line.amount_too_large".to_string())?;
+        .ok_or_else(|| "line_amount_too_large".to_string())?;
     let taxable_base_cents = percent_of(gross_cents, 10_000 - discount_rate_basis_points)?;
     let tax_cents = percent_of(taxable_base_cents, input.tax_rate_basis_points)?;
     let surcharge_cents = percent_of(taxable_base_cents, surcharge_rate_basis_points)?;
@@ -321,7 +321,7 @@ fn percent_of(amount: i64, basis_points: i32) -> Result<i64, String> {
     amount
         .checked_mul(i64::from(basis_points))
         .map(|value| round_div(value, 10_000))
-        .ok_or_else(|| "line.amount_too_large".to_string())
+        .ok_or_else(|| "line_amount_too_large".to_string())
 }
 
 /// Líneas de una factura con la cuota de cada grupo del desglose cuadrada al céntimo.
@@ -353,7 +353,7 @@ pub(crate) fn build_lines(
         let base = indexes
             .iter()
             .try_fold(0i64, |sum, &i| sum.checked_add(lines[i].taxable_base_cents))
-            .ok_or_else(|| "line.amount_too_large".to_string())?;
+            .ok_or_else(|| "line_amount_too_large".to_string())?;
         let tax_diff =
             percent_of(base, tax_rate)? - indexes.iter().map(|&i| lines[i].tax_cents).sum::<i64>();
         let surcharge_diff = percent_of(base, surcharge_rate)?
@@ -641,7 +641,7 @@ mod tests {
         assert_eq!(invoice.totals.taxable_base_cents, 99_999_999_000_000);
         assert_eq!(invoice.totals.tax_cents, 20_999_999_790_000);
         let err = draft_with(vec![line(i64::MAX / 2, 3)]).expect_err("overflow");
-        assert_eq!(err, "line.amount_too_large");
+        assert_eq!(err, "line_amount_too_large");
     }
 
     #[test]
